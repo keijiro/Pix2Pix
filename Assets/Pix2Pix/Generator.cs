@@ -10,8 +10,7 @@ namespace Pix2Pix
             var filter = weights["generator/encoder_1/conv2d/kernel"];
             var bias = weights["generator/encoder_1/conv2d/bias"];
 
-            foreach (var i in filter.Shape) Debug.Log(i);
-            foreach (var i in bias.Shape) Debug.Log(i);
+            var conv = Tensor.EncodeConv2D(input, filter, bias);
         }
     }
 }
