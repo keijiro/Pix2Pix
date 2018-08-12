@@ -13,7 +13,11 @@ namespace Pix2Pix
             var path = Path.Combine(Application.streamingAssetsPath, _weightFileName);
             var weights = WeightReader.ReadFromFile(path);
             var source = ImageFilter.Preprocess(_sourceTexture);
-            Generator.Apply(source, weights);
+            var result = ImageFilter.Deprocess(Generator.Apply(source, weights));
+
+            GetComponent<MeshRenderer>().material.mainTexture = result;
+
+            Debug.Log("Done");
         }
     }
 }
