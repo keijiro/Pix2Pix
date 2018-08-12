@@ -23,7 +23,7 @@ namespace Pix2Pix
                 }
             }
 
-            return new Tensor(new[]{2, 2, 3}, data);
+            return new Tensor(new[]{h, w, 3}, data);
         }
     }
 }

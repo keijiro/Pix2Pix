@@ -13,4 +13,9 @@ namespace Pix2Pix
             return (b1 << 24) | (b2 << 16) | (b3 << 8) | b4;
         }
     }
+
+    static class MathUtil
+    {
+        public static float Square(float x) { return x * x; }
+    }
 }

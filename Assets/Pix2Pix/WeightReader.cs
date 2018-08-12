@@ -24,7 +24,6 @@ namespace Pix2Pix
         static ShapeInfo[] ReadShapeInfoJson(Byte[] data)
         {
             var json = "{\"shapes\":" + Encoding.UTF8.GetString(data) + "}";
-            UnityEngine.Debug.Log(json);
             return UnityEngine.JsonUtility.FromJson<ShapeList>(json).shapes;
         }
 
