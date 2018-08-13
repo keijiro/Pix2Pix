@@ -177,12 +177,11 @@ namespace Pix2Pix
                 var offs = offset.Get(ch);
                 var sc = scale.Get(ch);
 
+                sc /= UnityEngine.Mathf.Sqrt(variance + epsilon);
+
                 for (var y = 0; y < input.Shape[0]; y++)
                     for (var x = 0; x < input.Shape[1]; x++)
-                        output.Set(y, x, ch,
-                            offs + (input.Get(y, x, ch) - mean) * sc /
-                            UnityEngine.Mathf.Sqrt(variance + epsilon)
-                        );
+                        output.Set(y, x, ch, offs + (input.Get(y, x, ch) - mean) * sc);
             }
 
             return output;
@@ -194,8 +193,8 @@ namespace Pix2Pix
             var inWidth = input.Shape[1];
             var inChannels = input.Shape[2];
 
-            var outWidth = inWidth / 2;
             var outHeight = inHeight / 2;
+            var outWidth = inWidth / 2;
             var outChannels = filter.Shape[3];
 
             var filterHeight = filter.Shape[0];
@@ -207,11 +206,11 @@ namespace Pix2Pix
             {
                 for (var oy = 0; oy < outHeight; oy++)
                 {
-                    var ymin = oy * 2 - filterHeight / 2;
+                    var ymin = oy * 2 - filterHeight / 2 + 1;
 
                     for (var ox = 0; ox < outWidth; ox++)
                     {
-                        var xmin = ox * 2 - filterWidth / 2;
+                        var xmin = ox * 2 - filterWidth / 2 + 1;
                         var prod = 0.0f;
 
                         for (var fy = 0; fy < filterHeight; fy++)
@@ -241,8 +240,8 @@ namespace Pix2Pix
             var inWidth = input.Shape[1];
             var inChannels = input.Shape[2];
 
-            var outWidth = inWidth * 2;
             var outHeight = inHeight * 2;
+            var outWidth = inWidth * 2;
             var outChannels = filter.Shape[2];
 
             var filterHeight = filter.Shape[0];
@@ -254,21 +253,25 @@ namespace Pix2Pix
             {
                 for (var oy = 0; oy < outHeight; oy++)
                 {
-                    var ymin = oy / 2 - filterHeight / 2;
+                    var ymin = oy / 2;
 
                     for (var ox = 0; ox < outWidth; ox++)
                     {
-                        var xmin = ox / 2 - filterWidth / 2;
+                        var xmin = ox / 2;
                         var prod = 0.0f;
 
-                        for (var fy = 0; fy < filterHeight; fy++)
+                        for (var fy = (oy + 1) % 2; fy < filterHeight; fy += 2)
                         {
-                            for (var fx = 0; fx < filterWidth; fx++)
+                            for (var fx = (ox + 1) % 2; fx < filterWidth; fx += 2)
                             {
                                 for (var ic = 0; ic < inChannels; ic++)
                                 {
-                                    var pixel = input.Get(ymin + fy, xmin + fx, ic);
-                                    var weight = filter.Get(fy, fx, ic, oc);
+                                    var pixel = input.Get(ymin + fy / 2, xmin + fx / 2, ic);
+                                    var weight = filter.Get(
+                                        filterHeight - 1 - fy,
+                                        filterWidth  - 1 - fx,
+                                        oc, ic
+                                    );
                                     prod += pixel * weight;
                                 }
                             }
