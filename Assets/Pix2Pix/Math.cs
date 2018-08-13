@@ -253,16 +253,16 @@ namespace Pix2Pix
             {
                 for (var oy = 0; oy < outHeight; oy++)
                 {
-                    var ymin = oy / 2;
+                    var ymin = (oy - 1) / 2;
 
                     for (var ox = 0; ox < outWidth; ox++)
                     {
-                        var xmin = ox / 2;
+                        var xmin = (ox - 1) / 2;
                         var prod = 0.0f;
 
-                        for (var fy = (oy + 1) % 2; fy < filterHeight; fy += 2)
+                        for (var fy = oy % 2; fy < filterHeight; fy += 2)
                         {
-                            for (var fx = (ox + 1) % 2; fx < filterWidth; fx += 2)
+                            for (var fx = ox % 2; fx < filterWidth; fx += 2)
                             {
                                 for (var ic = 0; ic < inChannels; ic++)
                                 {
