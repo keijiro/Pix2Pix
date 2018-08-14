@@ -12,8 +12,8 @@ own model with using [pix2pix-tensorflow].
 
 At the moment, it's implemented in naïve C# and hasn't been optimized by any
 mean. It takes about 5 minutes to inference a single image. Personally, I'm
-pretty optimistic about performance because there are a bunch of established
-approaches to optimize neural network inference.
+optimistic about performance because there are many established approaches to
+optimize neural network inference.
 
 [pix2pix]: https://github.com/phillipi/pix2pix
 [interactive demo]: https://affinelayer.com/pixsrv/
