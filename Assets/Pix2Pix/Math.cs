@@ -1,3 +1,5 @@
+#define ENABLE_COMPUTE
+
 using System.Linq;
 
 namespace Pix2Pix
@@ -95,6 +97,9 @@ namespace Pix2Pix
 
         public static Tensor Relu(Tensor input)
         {
+#if ENABLE_COMPUTE
+            return GpuHelper.InvokeFunctionKernel("Relu", input);
+#else
             var data = new float[input.Data.Length];
             for (var i = 0; i < data.Length; i++)
             {
@@ -102,10 +107,15 @@ namespace Pix2Pix
                 data[i] = v < 0 ? 0 : v;
             }
             return new Tensor(input.Shape, data);
+#endif
         }
 
         public static Tensor LeakyRelu(Tensor input, float alpha)
         {
+#if ENABLE_COMPUTE
+            Pix2PixResources.Compute.SetFloat("Alpha", alpha);
+            return GpuHelper.InvokeFunctionKernel("LeakyRelu", input);
+#else
             var data = new float[input.Data.Length];
             for (var i = 0; i < data.Length; i++)
             {
@@ -113,14 +123,19 @@ namespace Pix2Pix
                 data[i] = v < 0 ? v * alpha : v;
             }
             return new Tensor(input.Shape, data);
+#endif
         }
 
         public static Tensor Tanh(Tensor input)
         {
+#if ENABLE_COMPUTE
+            return GpuHelper.InvokeFunctionKernel("Tanh", input);
+#else
             var data = new float[input.Data.Length];
             for (var i = 0; i < data.Length; i++)
                 data[i] = (float)System.Math.Tanh(input.Data[i]);
             return new Tensor(input.Shape, data);
+#endif
         }
 
         public static Tensor Concat(Tensor input1, Tensor input2)
@@ -155,6 +170,11 @@ namespace Pix2Pix
 
         public static Tensor BatchNorm(Tensor input, Tensor scale, Tensor offset)
         {
+#if ENABLE_COMPUTE
+            var channels = scale.Shape[0];
+            var kernel = channels == 512 ? "BatchNorm512" : "BatchNorm64";
+            return GpuHelper.InvokeNormalizationKernel(kernel, input, scale, offset);
+#else
             UnityEngine.Debug.Assert(input.Shape.Length == 3);
 
             var output = new Tensor(input.Shape);
@@ -185,10 +205,16 @@ namespace Pix2Pix
             }
 
             return output;
+#endif
         }
 
         public static Tensor Conv2D(Tensor input, Tensor filter, Tensor bias)
         {
+#if ENABLE_COMPUTE
+            var outChannels = filter.Shape[3];
+            var kernel = outChannels >= 512 ? "Conv2D_512_1_1" : "Conv2D_64_16_1";
+            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Forward, kernel, input, filter, bias);
+#else
             var inHeight = input.Shape[0];
             var inWidth = input.Shape[1];
             var inChannels = input.Shape[2];
@@ -232,10 +258,17 @@ namespace Pix2Pix
             }
 
             return output;
+#endif
         }
 
         public static Tensor Deconv2D(Tensor input, Tensor filter, Tensor bias)
         {
+#if ENABLE_COMPUTE
+            var outChannels = filter.Shape[2];
+            var kernel = outChannels >= 512 ? "Deconv2D_512_1_1" : "Deconv2D_64_16_1";
+            if (outChannels == 3) kernel = "Deconv2D_3_256_1";
+            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Backward, kernel, input, filter, bias);
+#else
             var inHeight = input.Shape[0];
             var inWidth = input.Shape[1];
             var inChannels = input.Shape[2];
@@ -283,6 +316,7 @@ namespace Pix2Pix
             }
 
             return output;
+#endif
         }
     }
 }
