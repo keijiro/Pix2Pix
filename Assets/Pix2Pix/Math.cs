@@ -140,6 +140,12 @@ namespace Pix2Pix
 
         public static Tensor Concat(Tensor input1, Tensor input2)
         {
+#if ENABLE_COMPUTE
+            var area = input1.Shape[0] * input1.Shape[1];
+            var kernel = area < 1024 ? "Concat256" : "Concat1024";
+            if (area < 256) kernel = area < 32 ? "Concat4" : "Concat32";
+            return GpuHelper.InvokeConcatKernel(kernel, input1, input2);
+#else
             UnityEngine.Debug.Assert(input1.Shape.Length == 3);
             UnityEngine.Debug.Assert(input2.Shape.Length == 3);
             UnityEngine.Debug.Assert(input1.Shape[0] == input2.Shape[0]);
@@ -166,6 +172,7 @@ namespace Pix2Pix
             }
 
             return output;
+#endif
         }
 
         public static Tensor BatchNorm(Tensor input, Tensor scale, Tensor offset)

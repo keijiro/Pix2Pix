@@ -6,6 +6,51 @@ namespace Pix2Pix
     {
         public enum ConvolutionMode { Forward, Backward }
 
+        public static Tensor InvokeConcatKernel(string name, Tensor input1, Tensor input2)
+        {
+            var compute = Pix2PixResources.Compute;
+            var kernel = compute.FindKernel(name);
+
+            uint tgn_x, tgn_y, tgn_z;
+            compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
+            Debug.Assert(tgn_y == 1 && tgn_z == 1);
+
+            var height = input1.Shape[0];
+            var width  = input1.Shape[1];
+            var channels1 = input1.Shape[2];
+            var channels2 = input2.Shape[2];
+
+            Debug.Assert(input2.Shape[0] == height);
+            Debug.Assert(input2.Shape[1] == width);
+            Debug.Assert(width * height % tgn_x == 0);
+
+            var output = new Tensor(new [] {height, width, channels1 + channels2});
+
+            var buffer_input1 = new UnityEngine.ComputeBuffer(input1.Data.Length, sizeof(float));
+            var buffer_input2 = new UnityEngine.ComputeBuffer(input2.Data.Length, sizeof(float));
+            var buffer_output = new UnityEngine.ComputeBuffer(output.Data.Length, sizeof(float));
+
+            buffer_input1.SetData(input1.Data);
+            buffer_input2.SetData(input2.Data);
+
+            compute.SetBuffer(kernel,  "Input", buffer_input1);
+            compute.SetBuffer(kernel, "Input2", buffer_input2);
+            compute.SetBuffer(kernel, "Output", buffer_output);
+
+            compute.SetInts( "InputShape", input1.Shape);
+            compute.SetInts("Input2Shape", input2.Shape);
+            compute.SetInts("OutputShape", output.Shape);
+
+            compute.Dispatch(kernel, width * height / (int)tgn_x, 1, 1);
+            buffer_output.GetData(output.Data);
+
+            buffer_input1.Dispose();
+            buffer_input2.Dispose();
+            buffer_output.Dispose();
+
+            return output;
+        }
+
         public static Tensor InvokeFunctionKernel(string name, Tensor input)
         {
             var compute = Pix2PixResources.Compute;
