@@ -10,20 +10,22 @@ namespace Pix2Pix
 
         void Start()
         {
-            var weights = Path.Combine(Application.streamingAssetsPath, _weightFileName);
+            var fullPathWeights = Path.Combine(Application.streamingAssetsPath, _weightFileName);
+            var weights = WeightReader.ReadFromFile(fullPathWeights);
 
             var stopwatch = new System.Diagnostics.Stopwatch();
             stopwatch.Start();
 
-            var result = ImageFilter.Deprocess(
-                Generator.Apply(
-                    ImageFilter.Preprocess(_sourceTexture),
-                    WeightReader.ReadFromFile(weights)
-                )
-            );
+            var source = ImageFilter.Preprocess(_sourceTexture);
+            var generated = Generator.Apply(source, weights);
+            var result = ImageFilter.Deprocess(generated);
 
             stopwatch.Stop();
             Debug.Log("Done. Total inference time is " + stopwatch.Elapsed);
+
+            source.Dispose();
+            generated.Dispose();
+            WeightReader.DisposeTable(weights);
 
             GetComponent<MeshRenderer>().material.mainTexture = result;
         }

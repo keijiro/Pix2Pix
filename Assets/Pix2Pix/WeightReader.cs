@@ -61,6 +61,11 @@ namespace Pix2Pix
             return table;
         }
 
+        public static void DisposeTable(Dictionary<string, Tensor> table)
+        {
+            foreach (var pair in table) pair.Value.Dispose();
+        }
+
         #endregion
     }
 }
