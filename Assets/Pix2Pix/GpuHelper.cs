@@ -13,23 +13,13 @@ namespace Pix2Pix
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
             Debug.Assert(tgn_y == 1 && tgn_z == 1);
 
-            var length = input.Data.Length;
+            var length = input.Buffer.count;
             Debug.Assert(length % tgn_x == 0);
 
-            var buffer_input  = new ComputeBuffer(length, sizeof(float));
-            var buffer_output = new ComputeBuffer(length, sizeof(float));
-
-            buffer_input.SetData(input.Data);
-            compute.SetBuffer(kernel, "Input", buffer_input);
-            compute.SetBuffer(kernel, "Output", buffer_output);
-            compute.Dispatch(kernel, length / (int)tgn_x, 1, 1);
-
             var output = new Tensor(input.Shape);
-            buffer_output.GetData(output.Data);
-
-            buffer_input .Dispose();
-            buffer_output.Dispose();
-
+            compute.SetBuffer(kernel, "Input", input.Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
+            compute.Dispatch(kernel, length / (int)tgn_x, 1, 1);
             return output;
         }
 
@@ -53,26 +43,14 @@ namespace Pix2Pix
 
             var output = new Tensor(new [] {height, width, channels1 + channels2});
 
-            var buffer_input1 = new ComputeBuffer(input1.Data.Length, sizeof(float));
-            var buffer_input2 = new ComputeBuffer(input2.Data.Length, sizeof(float));
-            var buffer_output = new ComputeBuffer(output.Data.Length, sizeof(float));
-
-            buffer_input1.SetData(input1.Data);
-            buffer_input2.SetData(input2.Data);
-
-            compute.SetBuffer(kernel, "Input1", buffer_input1);
-            compute.SetBuffer(kernel, "Input2", buffer_input2);
-            compute.SetBuffer(kernel, "Output", buffer_output);
+            compute.SetBuffer(kernel, "Input1", input1.Buffer);
+            compute.SetBuffer(kernel, "Input2", input2.Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
 
             compute.SetInts("Input1Shape", input1.Shape);
             compute.SetInts("Input2Shape", input2.Shape);
 
             compute.Dispatch(kernel, width * height / (int)tgn_x, 1, 1);
-            buffer_output.GetData(output.Data);
-
-            buffer_input1.Dispose();
-            buffer_input2.Dispose();
-            buffer_output.Dispose();
 
             return output;
         }
@@ -87,38 +65,21 @@ namespace Pix2Pix
             uint tgn_x, tgn_y, tgn_z;
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
 
-            var length = input.Data.Length;
+            var length = input.Buffer.count;
             var channels = input.Shape[2];
 
             Debug.Assert(channels % tgn_x == 0);
-            Debug.Assert(channels == scale .Data.Length);
-            Debug.Assert(channels == offset.Data.Length);
-
-            var buffer_input  = new ComputeBuffer(length,   sizeof(float));
-            var buffer_scale  = new ComputeBuffer(channels, sizeof(float));
-            var buffer_offset = new ComputeBuffer(channels, sizeof(float));
-            var buffer_output = new ComputeBuffer(length,   sizeof(float));
-
-            buffer_input .SetData(input .Data);
-            buffer_scale .SetData(scale .Data);
-            buffer_offset.SetData(offset.Data);
-
-            compute.SetInts("InputShape", input.Shape);
-
-            compute.SetBuffer(kernel, "Input" , buffer_input );
-            compute.SetBuffer(kernel, "Scale" , buffer_scale );
-            compute.SetBuffer(kernel, "Offset", buffer_offset);
-            compute.SetBuffer(kernel, "Output", buffer_output);
-
-            compute.Dispatch(kernel, channels / (int)tgn_x, 1, 1);
+            Debug.Assert(channels == scale .Buffer.count);
+            Debug.Assert(channels == offset.Buffer.count);
 
             var output = new Tensor(input.Shape);
-            buffer_output.GetData(output.Data);
 
-            buffer_input .Dispose();
-            buffer_scale .Dispose();
-            buffer_offset.Dispose();
-            buffer_output.Dispose();
+            compute.SetInts("InputShape", input.Shape);
+            compute.SetBuffer(kernel, "Input" , input .Buffer);
+            compute.SetBuffer(kernel, "Scale" , scale .Buffer);
+            compute.SetBuffer(kernel, "Offset", offset.Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
+            compute.Dispatch(kernel, channels / (int)tgn_x, 1, 1);
 
             return output;
         }
@@ -146,36 +107,20 @@ namespace Pix2Pix
 
             var output = new Tensor(new [] {outHeight, outWidth, outChannels});
 
-            var buffer_input  = new ComputeBuffer(input .Data.Length, sizeof(float));
-            var buffer_filter = new ComputeBuffer(filter.Data.Length, sizeof(float));
-            var buffer_bias   = new ComputeBuffer(bias  .Data.Length, sizeof(float));
-            var buffer_output = new ComputeBuffer(output.Data.Length, sizeof(float));
-
-            buffer_input .SetData(input .Data);
-            buffer_filter.SetData(filter.Data);
-            buffer_bias  .SetData(bias  .Data);
-
             compute.SetInts( "InputShape", input .Shape);
             compute.SetInts("FilterShape", filter.Shape);
             compute.SetInts("OutputShape", output.Shape);
 
-            compute.SetBuffer(kernel, "Input" , buffer_input );
-            compute.SetBuffer(kernel, "Filter", buffer_filter);
-            compute.SetBuffer(kernel, "Bias"  , buffer_bias  );
-            compute.SetBuffer(kernel, "Output", buffer_output);
+            compute.SetBuffer(kernel, "Input" , input .Buffer);
+            compute.SetBuffer(kernel, "Filter", filter.Buffer);
+            compute.SetBuffer(kernel, "Bias"  , bias  .Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
 
             compute.Dispatch(kernel,
                 outChannels / (int)tgn_x,
                 outWidth    / (int)tgn_y,
                 outHeight   / (int)tgn_z
             );
-
-            buffer_output.GetData(output.Data);
-
-            buffer_input .Dispose();
-            buffer_filter.Dispose();
-            buffer_bias  .Dispose();
-            buffer_output.Dispose();
 
             return output;
         }
