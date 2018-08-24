@@ -1,0 +1,26 @@
+#pragma kernel Relu
+#pragma kernel LeakyRelu
+#pragma kernel Tanh
+
+Buffer<float> Input;
+RWBuffer<float> Output;
+float Alpha;
+
+[numthreads(512, 1, 1)]
+void Relu(uint id : SV_DispatchThreadID)
+{
+    Output[id] = max(0, Input[id]);
+}
+
+[numthreads(512, 1, 1)]
+void LeakyRelu(uint id : SV_DispatchThreadID)
+{
+    float v = Input[id];
+    Output[id] = max(v, v * Alpha);
+}
+
+[numthreads(512, 1, 1)]
+void Tanh(uint id : SV_DispatchThreadID)
+{
+    Output[id] = tanh(Input[id]);
+}

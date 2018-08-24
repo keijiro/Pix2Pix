@@ -1,0 +1,17 @@
+#pragma kernel BatchNorm64
+#pragma kernel BatchNorm512
+
+Buffer<float> Input;
+Buffer<float> Scale;
+Buffer<float> Offset;
+RWBuffer<float> Output;
+
+int3 InputShape;
+
+float square(float x) { return x * x; }
+
+[numthreads(64, 1, 1)] void BatchNorm64
+#include "BatchNorm.hlsl"
+
+[numthreads(512, 1, 1)] void BatchNorm512
+#include "BatchNorm.hlsl"

@@ -98,7 +98,7 @@ namespace Pix2Pix
         public static Tensor Relu(Tensor input)
         {
 #if ENABLE_COMPUTE
-            return GpuHelper.InvokeFunctionKernel("Relu", input);
+            return GpuHelper.InvokeActivationKernel("Relu", input);
 #else
             var data = new float[input.Data.Length];
             for (var i = 0; i < data.Length; i++)
@@ -113,8 +113,8 @@ namespace Pix2Pix
         public static Tensor LeakyRelu(Tensor input, float alpha)
         {
 #if ENABLE_COMPUTE
-            Pix2PixResources.Compute.SetFloat("Alpha", alpha);
-            return GpuHelper.InvokeFunctionKernel("LeakyRelu", input);
+            ComputeAssets.Activation.SetFloat("Alpha", alpha);
+            return GpuHelper.InvokeActivationKernel("LeakyRelu", input);
 #else
             var data = new float[input.Data.Length];
             for (var i = 0; i < data.Length; i++)
@@ -129,7 +129,7 @@ namespace Pix2Pix
         public static Tensor Tanh(Tensor input)
         {
 #if ENABLE_COMPUTE
-            return GpuHelper.InvokeFunctionKernel("Tanh", input);
+            return GpuHelper.InvokeActivationKernel("Tanh", input);
 #else
             var data = new float[input.Data.Length];
             for (var i = 0; i < data.Length; i++)
@@ -141,9 +141,9 @@ namespace Pix2Pix
         public static Tensor Concat(Tensor input1, Tensor input2)
         {
 #if ENABLE_COMPUTE
-            var area = input1.Shape[0] * input1.Shape[1];
-            var kernel = area < 1024 ? "Concat256" : "Concat1024";
-            if (area < 256) kernel = area < 32 ? "Concat4" : "Concat32";
+            var elements = input1.Shape[0] * input1.Shape[1];
+            var kernel = elements < 512 ? "Concat64" : "Concat512";
+            if (elements < 64) kernel = "Concat4";
             return GpuHelper.InvokeConcatKernel(kernel, input1, input2);
 #else
             UnityEngine.Debug.Assert(input1.Shape.Length == 3);
@@ -180,7 +180,7 @@ namespace Pix2Pix
 #if ENABLE_COMPUTE
             var channels = scale.Shape[0];
             var kernel = channels == 512 ? "BatchNorm512" : "BatchNorm64";
-            return GpuHelper.InvokeNormalizationKernel(kernel, input, scale, offset);
+            return GpuHelper.InvokeBatchNormKernel(kernel, input, scale, offset);
 #else
             UnityEngine.Debug.Assert(input.Shape.Length == 3);
 
@@ -219,8 +219,8 @@ namespace Pix2Pix
         {
 #if ENABLE_COMPUTE
             var outChannels = filter.Shape[3];
-            var kernel = outChannels >= 512 ? "Conv2D_512_1_1" : "Conv2D_64_16_1";
-            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Forward, kernel, input, filter, bias);
+            var kernel = outChannels >= 512 ? "Conv2D_512_1" : "Conv2D_64_8";
+            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Down, kernel, input, filter, bias);
 #else
             var inHeight = input.Shape[0];
             var inWidth = input.Shape[1];
@@ -272,9 +272,9 @@ namespace Pix2Pix
         {
 #if ENABLE_COMPUTE
             var outChannels = filter.Shape[2];
-            var kernel = outChannels >= 512 ? "Deconv2D_512_1_1" : "Deconv2D_64_16_1";
-            if (outChannels == 3) kernel = "Deconv2D_3_256_1";
-            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Backward, kernel, input, filter, bias);
+            var kernel = outChannels >= 512 ? "TransConv2D_512_1" : "TransConv2D_64_8";
+            if (outChannels == 3) kernel = "TransConv2D_3_128";
+            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Up, kernel, input, filter, bias);
 #else
             var inHeight = input.Shape[0];
             var inWidth = input.Shape[1];

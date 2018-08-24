@@ -352,4 +352,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5c3cd9fc8699c6439ff3e034eb36526, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _compute: {fileID: 7200000, guid: aa231cbf6358c2c49ad0514c4dd30701, type: 3}
+  _activation: {fileID: 7200000, guid: 5bbbfdbe78b3e0647bbb269a10bc77bd, type: 3}
+  _concat: {fileID: 7200000, guid: 03ada4dc6c344be4a80d675dd931974f, type: 3}
+  _batchNorm: {fileID: 7200000, guid: 48ae6ab6cc385c342adb4f3dfc265baf, type: 3}
+  _convolution: {fileID: 7200000, guid: aa231cbf6358c2c49ad0514c4dd30701, type: 3}

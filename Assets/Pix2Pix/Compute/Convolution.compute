@@ -1,0 +1,48 @@
+#pragma kernel Conv2D_64_8
+#pragma kernel Conv2D_512_1
+#pragma kernel TransConv2D_3_128
+#pragma kernel TransConv2D_64_8
+#pragma kernel TransConv2D_512_1
+
+Buffer<float> Input;
+Buffer<float> Filter;
+Buffer<float> Bias;
+RWBuffer<float> Output;
+
+int3 InputShape;
+int4 FilterShape;
+int3 OutputShape;
+
+float GetInput(int3 i)
+{
+    if (any(i < 0) || any(i >= InputShape)) return 0;
+    return Input[(i.x * InputShape.y + i.y) * InputShape.z + i.z];
+}
+
+float GetFilter(int4 i)
+{
+    if (any(i < 0) || any(i >= FilterShape)) return 0;
+    return Filter[((i.x * FilterShape.y + i.y) * FilterShape.z + i.z) * FilterShape.w + i.w];
+}
+
+int OutputIndex(int3 i)
+{
+    return (i.x * OutputShape.y + i.y) * OutputShape.z + i.z;
+}
+
+[numthreads(64, 8, 1)] void Conv2D_64_8
+#include "Convolution.hlsl"
+
+[numthreads(512, 1, 1)] void Conv2D_512_1
+#include "Convolution.hlsl"
+
+#define CONVOLUTION_TRANSPOSE
+
+[numthreads(3, 128, 1)] void TransConv2D_3_128
+#include "Convolution.hlsl"
+
+[numthreads(64, 8, 1)] void TransConv2D_64_8
+#include "Convolution.hlsl"
+
+[numthreads(512, 1, 1)] void TransConv2D_512_1
+#include "Convolution.hlsl"

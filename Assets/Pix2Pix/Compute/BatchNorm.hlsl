@@ -17,8 +17,8 @@
 
     variance /= InputShape.x * InputShape.y;
 
-    float sc = Filter[tid];
-    float offs = Bias[tid];
+    float sc = Scale[tid];
+    float offs = Offset[tid];
 
     sc /= sqrt(variance + 1e-5);
 
