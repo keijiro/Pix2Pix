@@ -9,7 +9,7 @@ RWBuffer<float> OutputTensor;
 Buffer<float> InputTensor;
 RWTexture2D<float3> OutputImage;
 
-[numthreads(32, 32, 1)]
+[numthreads(32, 16, 1)]
 void ImageToTensor(uint2 id : SV_DispatchThreadID)
 {
     float3 p = InputImage[id] * 2 - 1;
@@ -21,7 +21,7 @@ void ImageToTensor(uint2 id : SV_DispatchThreadID)
     OutputTensor[i++] = p.z;
 }
 
-[numthreads(32, 32, 1)]
+[numthreads(32, 16, 1)]
 void TensorToImage(uint2 id : SV_DispatchThreadID)
 {
     uint i = Shape.z * (id.x + Shape.y * id.y);
