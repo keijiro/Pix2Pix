@@ -97,8 +97,7 @@ namespace Pix2Pix
 
         public static Tensor Conv2D(Tensor input, Tensor filter, Tensor bias)
         {
-            var outChannels = filter.Shape[3];
-            var kernel = outChannels >= 512 ? "Conv2D_512_1" : "Conv2D_64_8";
+            var kernel = "Conv2D_" + filter.Shape[3];
             return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Down, kernel, input, filter, bias);
         }
 

@@ -1,8 +1,13 @@
-#pragma kernel Conv2D_64_8
-#pragma kernel Conv2D_512_1
+#pragma kernel Conv2D_64
+#pragma kernel Conv2D_128
+#pragma kernel Conv2D_256
+#pragma kernel Conv2D_512
+
 #pragma kernel TransConv2D_3_128
 #pragma kernel TransConv2D_64_8
 #pragma kernel TransConv2D_512_1
+
+#pragma enable_d3d11_debug_symbols
 
 Buffer<float> Input;
 Buffer<float> Filter;
@@ -16,6 +21,8 @@ uint3 OutputShape;
 uint3 InputIndexer;
 uint4 FilterIndexer;
 uint3 OutputIndexer;
+
+groupshared float cache[4][1024];
 
 float GetInput(uint3 pos, uint2 pad)
 {
@@ -34,18 +41,24 @@ uint OutputIndex(uint3 i)
     return dot(i, OutputIndexer);
 }
 
-[numthreads(64, 8, 1)] void Conv2D_64_8
+[numthreads(64, 1, 1)] void Conv2D_64
 #include "Convolution.hlsl"
 
-[numthreads(512, 1, 1)] void Conv2D_512_1
+[numthreads(128, 1, 1)] void Conv2D_128
+#include "Convolution.hlsl"
+
+[numthreads(256, 1, 1)] void Conv2D_256
+#include "Convolution.hlsl"
+
+[numthreads(512, 1, 1)] void Conv2D_512
 #include "Convolution.hlsl"
 
 #define CONVOLUTION_TRANSPOSE
 
-[numthreads(3, 128, 1)] void TransConv2D_3_128
+[numthreads(3, 1, 1)] void TransConv2D_3_128
 #include "Convolution.hlsl"
 
-[numthreads(64, 8, 1)] void TransConv2D_64_8
+[numthreads(64, 1, 1)] void TransConv2D_64_8
 #include "Convolution.hlsl"
 
 [numthreads(512, 1, 1)] void TransConv2D_512_1

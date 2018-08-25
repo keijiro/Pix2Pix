@@ -1,6 +1,6 @@
 #ifndef CONVOLUTION_TRANSPOSE
 
-(uint3 tid : SV_DispatchThreadID)
+(uint3 tid : SV_DispatchThreadID, uint gid : SV_GroupIndex)
 {
     uint2 pos = tid.zy * 2;
     uint2 pad = FilterShape.xy / 2 - 1;
@@ -11,12 +11,13 @@
     {
         for (uint fx = 0; fx < FilterShape.y; fx++)
         {
+            if (gid < InputShape.z)
+                cache[fx][gid] = GetInput(uint3(pos + uint2(fy, fx), gid), pad);
+
+            GroupMemoryBarrierWithGroupSync();
+
             for (uint ic = 0; ic < InputShape.z; ic++)
-            {
-                float x = GetInput(uint3(pos + uint2(fy, fx), ic), pad);
-                float w = GetFilter(int4(fy, fx, ic, tid.x));
-                prod += x * w;
-            }
+                prod += cache[fx][ic] * GetFilter(int4(fy, fx, ic, tid.x));
         }
     }
 
