@@ -9,23 +9,23 @@ Buffer<float> Filter;
 Buffer<float> Bias;
 RWBuffer<float> Output;
 
-int3 InputShape;
-int4 FilterShape;
-int3 OutputShape;
+uint3 InputShape;
+uint4 FilterShape;
+uint3 OutputShape;
 
-float GetInput(int3 i)
+float GetInput(uint3 pos, uint2 pad)
 {
-    if (any(i < 0) || any(i >= InputShape)) return 0;
-    return Input[(i.x * InputShape.y + i.y) * InputShape.z + i.z];
+    if (any(pos.xy < pad) || any(pos.xy >= InputShape.xy + pad)) return 0;
+    pos.xy -= pad.xy;
+    return Input[(pos.x * InputShape.y + pos.y) * InputShape.z + pos.z];
 }
 
-float GetFilter(int4 i)
+float GetFilter(uint4 i)
 {
-    if (any(i < 0) || any(i >= FilterShape)) return 0;
     return Filter[((i.x * FilterShape.y + i.y) * FilterShape.z + i.z) * FilterShape.w + i.w];
 }
 
-int OutputIndex(int3 i)
+uint OutputIndex(uint3 i)
 {
     return (i.x * OutputShape.y + i.y) * OutputShape.z + i.z;
 }

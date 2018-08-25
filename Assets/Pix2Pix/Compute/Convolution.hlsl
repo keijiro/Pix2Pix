@@ -1,21 +1,21 @@
 #ifndef CONVOLUTION_TRANSPOSE
 
-(int3 tid : SV_DispatchThreadID)
+(uint3 tid : SV_DispatchThreadID)
 {
-    int xmin = (int)tid.y * 2 - (FilterShape.y >> 1) + 1;
-    int ymin = (int)tid.z * 2 - (FilterShape.x >> 1) + 1;
+    uint2 pos = tid.zy * 2;
+    uint2 pad = FilterShape.xy / 2 - 1;
 
     float prod = 0;
 
-    for (int fy = 0; fy < FilterShape.x; fy++)
+    for (uint fy = 0; fy < FilterShape.x; fy++)
     {
-        for (int fx = 0; fx < FilterShape.y; fx++)
+        for (uint fx = 0; fx < FilterShape.y; fx++)
         {
-            for (int ic = 0; ic < InputShape.z; ic++)
+            for (uint ic = 0; ic < InputShape.z; ic++)
             {
-                float pixel = GetInput(int3(ymin + fy, xmin + fx, ic));
-                float weight = GetFilter(int4(fy, fx, ic, tid.x));
-                prod += pixel * weight;
+                float x = GetInput(uint3(pos + uint2(fy, fx), ic), pad);
+                float w = GetFilter(int4(fy, fx, ic, tid.x));
+                prod += x * w;
             }
         }
     }
@@ -25,22 +25,22 @@
 
 #else
 
-(int3 tid : SV_DispatchThreadID)
+(uint3 tid : SV_DispatchThreadID)
 {
-    int xmin = (tid.y - 1) >> 1;
-    int ymin = (tid.z - 1) >> 1;
+    uint2 pos = (tid.zy + 1) / 2;
+    uint2 pad = 1;
 
     float prod = 0;
 
-    for (int fy = tid.z & 1; fy < FilterShape.x; fy += 2)
+    for (uint fy = tid.z & 1; fy < FilterShape.x; fy += 2)
     {
-        for (int fx = tid.y & 1; fx < FilterShape.y; fx += 2)
+        for (uint fx = tid.y & 1; fx < FilterShape.y; fx += 2)
         {
-            for (int ic = 0; ic < InputShape.z; ic++)
+            for (uint ic = 0; ic < InputShape.z; ic++)
             {
-                float pixel = GetInput(int3(ymin + (fy >> 1), xmin + (fx >> 1), ic));
-                float weight = GetFilter(int4(FilterShape.x - 1 - fy, FilterShape.y - 1 - fx, tid.x, ic));
-                prod += pixel * weight;
+                float x = GetInput(uint3(pos + uint2(fy / 2, fx / 2), ic), pad);
+                float w = GetFilter(uint4(FilterShape.xy - 1 - uint2(fy, fx), tid.x, ic));
+                prod += x * w;
             }
         }
     }
