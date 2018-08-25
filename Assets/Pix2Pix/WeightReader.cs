@@ -56,6 +56,14 @@ namespace Pix2Pix
                 for (var j = 0; j < length; j++) data[j] = values[reader.ReadByte()];
 
                 table[info.name] = new Tensor(info.shape, data);
+
+                if (info.name.Contains("conv2d_transpose/kernel"))
+                {
+                    UnityEngine.Debug.Log(info.name);
+                    var t = table[info.name];
+                    table[info.name] = GpuHelper.SwapFilter(t);
+                    t.Dispose();
+                }
             }
 
             return table;

@@ -1,11 +1,15 @@
+#pragma kernel SwapFilter
+
 #pragma kernel Conv2D_64
 #pragma kernel Conv2D_128
 #pragma kernel Conv2D_256
 #pragma kernel Conv2D_512
 
-#pragma kernel TransConv2D_3_128
-#pragma kernel TransConv2D_64_8
-#pragma kernel TransConv2D_512_1
+#pragma kernel TransConv2D_64
+#pragma kernel TransConv2D_128
+#pragma kernel TransConv2D_256
+#pragma kernel TransConv2D_512
+#pragma kernel TransConv2D_1024
 
 #pragma enable_d3d11_debug_symbols
 
@@ -41,6 +45,19 @@ uint OutputIndex(uint3 i)
     return dot(i, OutputIndexer);
 }
 
+[numthreads(4, 4, 1)]
+void SwapFilter(uint2 tid : SV_DispatchThreadID)
+{
+    for (uint o = 0; o < FilterShape.z; o++)
+    {
+        for (uint i = 0; i < FilterShape.w; i++)
+        {
+            uint idx = ((tid.x * FilterShape.y + tid.y) * FilterShape.w + i) * FilterShape.z + o;
+            Output[idx] = Filter[dot(FilterIndexer, uint4(tid.xy, o, i))];
+        }
+    }
+}
+
 [numthreads(64, 1, 1)] void Conv2D_64
 #include "Convolution.hlsl"
 
@@ -55,11 +72,17 @@ uint OutputIndex(uint3 i)
 
 #define CONVOLUTION_TRANSPOSE
 
-[numthreads(3, 1, 1)] void TransConv2D_3_128
+[numthreads(64, 1, 1)] void TransConv2D_64
 #include "Convolution.hlsl"
 
-[numthreads(64, 1, 1)] void TransConv2D_64_8
+[numthreads(128, 1, 1)] void TransConv2D_128
 #include "Convolution.hlsl"
 
-[numthreads(512, 1, 1)] void TransConv2D_512_1
+[numthreads(256, 1, 1)] void TransConv2D_256
+#include "Convolution.hlsl"
+
+[numthreads(512, 1, 1)] void TransConv2D_512
+#include "Convolution.hlsl"
+
+[numthreads(1024, 1, 1)] void TransConv2D_1024
 #include "Convolution.hlsl"

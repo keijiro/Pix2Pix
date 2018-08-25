@@ -103,9 +103,7 @@ namespace Pix2Pix
 
         public static Tensor Deconv2D(Tensor input, Tensor filter, Tensor bias)
         {
-            var outChannels = filter.Shape[2];
-            var kernel = outChannels >= 512 ? "TransConv2D_512_1" : "TransConv2D_64_8";
-            if (outChannels == 3) kernel = "TransConv2D_3_128";
+            var kernel = "TransConv2D_" + filter.Shape[2];
             return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Up, kernel, input, filter, bias);
         }
 

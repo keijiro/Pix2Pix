@@ -118,13 +118,15 @@ namespace Pix2Pix
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
 
             var trans = (mode == ConvolutionMode.Up);
+
             var outHeight = trans ? input.Shape[0] * 2 : input.Shape[0] / 2;
             var outWidth  = trans ? input.Shape[1] * 2 : input.Shape[1] / 2;
-            var outChannels = filter.Shape[trans ? 2 : 3];
+            //var outChannels = filter.Shape[trans ? 2 : 3];
+            var outChannels = filter.Shape[3];
 
             Debug.Assert(outHeight   % tgn_z == 0);
             Debug.Assert(outWidth    % tgn_y == 0);
-            Debug.Assert(outChannels % tgn_x == 0);
+            //Debug.Assert(outChannels % tgn_x == 0);
 
             var output = new Tensor(new [] {outHeight, outWidth, outChannels});
 
@@ -142,10 +144,36 @@ namespace Pix2Pix
             compute.SetBuffer(kernel, "Output", output.Buffer);
 
             compute.Dispatch(kernel,
-                outChannels / (int)tgn_x,
+                (trans ? input.Shape[2] : outChannels) / (int)tgn_x,
                 outWidth    / (int)tgn_y,
                 outHeight   / (int)tgn_z
             );
+
+            return output;
+        }
+
+        public static Tensor SwapFilter(Tensor filter)
+        {
+            var compute = ComputeAssets.Convolution;
+            var kernel = compute.FindKernel("SwapFilter");
+
+            uint tgn_x, tgn_y, tgn_z;
+            compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
+
+            var shape = filter.Shape;
+            Debug.Assert(shape[0] % tgn_x == 0);
+            Debug.Assert(shape[1] % tgn_y == 0);
+            Debug.Assert(tgn_z == 1);
+
+            var output = new Tensor(new [] {shape[0], shape[1], shape[3], shape[2]});
+
+            compute.SetInts("FilterShape", filter.Shape);
+            compute.SetInts("FilterIndexer", CalculateIndexVector(filter.Shape));
+
+            compute.SetBuffer(kernel, "Filter", filter.Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
+
+            compute.Dispatch(kernel, shape[0] / (int)tgn_x, shape[1] / (int)tgn_y, 1);
 
             return output;
         }
