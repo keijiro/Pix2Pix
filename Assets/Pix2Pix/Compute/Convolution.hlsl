@@ -38,8 +38,9 @@
         {
             for (uint ic = 0; ic < InputShape.z; ic++)
             {
-                float x = GetInput(uint3(pos + uint2(fy / 2, fx / 2), ic), pad);
-                float w = GetFilter(uint4(FilterShape.xy - 1 - uint2(fy, fx), tid.x, ic));
+                uint2 fp = uint2(fy, fx);
+                float x = GetInput(uint3(pos + fp / 2, ic), pad);
+                float w = GetFilter(uint4(FilterShape.xy - 1 - fp, tid.x, ic));
                 prod += x * w;
             }
         }

@@ -13,21 +13,25 @@ uint3 InputShape;
 uint4 FilterShape;
 uint3 OutputShape;
 
+uint3 InputIndexer;
+uint4 FilterIndexer;
+uint3 OutputIndexer;
+
 float GetInput(uint3 pos, uint2 pad)
 {
     if (any(pos.xy < pad) || any(pos.xy >= InputShape.xy + pad)) return 0;
     pos.xy -= pad.xy;
-    return Input[(pos.x * InputShape.y + pos.y) * InputShape.z + pos.z];
+    return Input[dot(pos, InputIndexer)];
 }
 
 float GetFilter(uint4 i)
 {
-    return Filter[((i.x * FilterShape.y + i.y) * FilterShape.z + i.z) * FilterShape.w + i.w];
+    return Filter[dot(i, FilterIndexer)];
 }
 
 uint OutputIndex(uint3 i)
 {
-    return (i.x * OutputShape.y + i.y) * OutputShape.z + i.z;
+    return dot(i, OutputIndexer);
 }
 
 [numthreads(64, 8, 1)] void Conv2D_64_8

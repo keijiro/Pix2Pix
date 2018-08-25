@@ -86,6 +86,27 @@ namespace Pix2Pix
 
         public enum ConvolutionMode { Down, Up }
 
+        static int[] _tempIndexVector = new int[4];
+
+        static int[] CalculateIndexVector(int[] shape)
+        {
+            if (shape.Length == 4)
+            {
+                _tempIndexVector[0] = shape[1] * shape[2] * shape[3];
+                _tempIndexVector[1] = shape[2] * shape[3];
+                _tempIndexVector[2] = shape[3];
+                _tempIndexVector[3] = 1;
+            }
+            else
+            {
+                _tempIndexVector[0] = shape[1] * shape[2];
+                _tempIndexVector[1] = shape[2];
+                _tempIndexVector[2] = 1;
+                _tempIndexVector[3] = 0;
+            }
+            return _tempIndexVector;
+        }
+
         public static Tensor InvokeConvolutionKernel(
             ConvolutionMode mode, string name, Tensor input, Tensor filter, Tensor bias
         )
@@ -110,6 +131,10 @@ namespace Pix2Pix
             compute.SetInts( "InputShape", input .Shape);
             compute.SetInts("FilterShape", filter.Shape);
             compute.SetInts("OutputShape", output.Shape);
+
+            compute.SetInts( "InputIndexer", CalculateIndexVector(input .Shape));
+            compute.SetInts("FilterIndexer", CalculateIndexVector(filter.Shape));
+            compute.SetInts("OutputIndexer", CalculateIndexVector(output.Shape));
 
             compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Filter", filter.Buffer);
