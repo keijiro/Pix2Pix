@@ -19,9 +19,9 @@ uint3 OutputIndexer;
 
 float GetInput(uint3 pos, uint2 pad)
 {
-    if (any(pos.xy < pad) || any(pos.xy >= InputShape.xy + pad)) return 0;
-    pos.xy -= pad.xy;
-    return Input[dot(pos, InputIndexer)];
+    float mask = 1 - (any(pos.xy < pad) || any(pos.xy >= InputShape.xy + pad));
+    pos.xy -= pad * mask;
+    return Input[dot(pos, InputIndexer)] * mask;
 }
 
 float GetFilter(uint4 i)
