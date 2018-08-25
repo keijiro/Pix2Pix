@@ -1,7 +1,7 @@
-(int tid : SV_DispatchThreadID)
+(uint tid : SV_DispatchThreadID)
 {
-    int input_length = InputShape.x * InputShape.y * InputShape.z;
-    int i;
+    uint input_length = InputShape.x * InputShape.y * InputShape.z;
+    uint i;
 
     float mean = 0;
 

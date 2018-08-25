@@ -6,8 +6,8 @@ Buffer<float> Input1;
 Buffer<float> Input2;
 RWBuffer<float> Output;
 
-int3 Input1Shape;
-int3 Input2Shape;
+uint3 Input1Shape;
+uint3 Input2Shape;
 
 [numthreads(4, 1, 1)] void Concat4
 #include "Concat.hlsl"
