@@ -4,6 +4,8 @@
 #pragma enable_d3d11_debug_symbols
 
 #pragma kernel BatchNorm64
+#pragma kernel BatchNorm128
+#pragma kernel BatchNorm256
 #pragma kernel BatchNorm512
 
 Buffer<float> Input;
@@ -16,6 +18,12 @@ int3 InputShape;
 float square(float x) { return x * x; }
 
 [numthreads(64, 1, 1)] void BatchNorm64
+#include "BatchNorm.hlsl"
+
+[numthreads(128, 1, 1)] void BatchNorm128
+#include "BatchNorm.hlsl"
+
+[numthreads(256, 1, 1)] void BatchNorm256
 #include "BatchNorm.hlsl"
 
 [numthreads(512, 1, 1)] void BatchNorm512

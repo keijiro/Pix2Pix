@@ -1,27 +1,26 @@
-(uint tid : SV_DispatchThreadID)
+(const uint tid : SV_DispatchThreadID)
 {
-    uint input_length = InputShape.x * InputShape.y * InputShape.z;
+    const uint count = InputShape.x * InputShape.y;
+    const uint stride = InputShape.z;
+
     uint i;
 
     float mean = 0;
-
-    for (i = tid; i < input_length; i += InputShape.z)
-        mean += Input[i];
-
-    mean /= InputShape.x * InputShape.y;
+    for (i = 0; i < count; i++)
+        mean += Input[i * stride + tid];
+    mean /= count;
 
     float variance = 0;
+    for (i = 0; i < count; i++)
+        variance += square(Input[i * stride + tid] - mean);
+    variance /= count;
 
-    for (i = tid; i < input_length; i += InputShape.z)
-        variance += square(Input[i] - mean);
+    float scale = Scale[tid] / sqrt(variance + 1e-5);
+    float offset = Offset[tid];
 
-    variance /= InputShape.x * InputShape.y;
-
-    float sc = Scale[tid];
-    float offs = Offset[tid];
-
-    sc /= sqrt(variance + 1e-5);
-
-    for (i = tid; i < input_length; i += InputShape.z)
-        Output[i] = offs + (Input[i] - mean) * sc;
+    for (i = 0; i < count; i++)
+    {
+        uint idx = i * stride + tid;
+        Output[idx] = (Input[idx] - mean) * scale + offset;
+    }
 }

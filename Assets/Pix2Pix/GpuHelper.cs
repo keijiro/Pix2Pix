@@ -68,7 +68,7 @@ namespace Pix2Pix
             var length = input.Buffer.count;
             var channels = input.Shape[2];
 
-            Debug.Assert(channels % tgn_x == 0);
+            Debug.Assert(channels == tgn_x);
             Debug.Assert(channels == scale .Buffer.count);
             Debug.Assert(channels == offset.Buffer.count);
 
@@ -79,7 +79,7 @@ namespace Pix2Pix
             compute.SetBuffer(kernel, "Scale" , scale .Buffer);
             compute.SetBuffer(kernel, "Offset", offset.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
-            compute.Dispatch(kernel, channels / (int)tgn_x, 1, 1);
+            compute.Dispatch(kernel, 1, 1, 1);
 
             return output;
         }
