@@ -1,3 +1,8 @@
+// Downsampling convolution and upsampling transposed convolution kernels
+// https://github.com/keijiro/Pix2Pix
+
+#pragma enable_d3d11_debug_symbols
+
 #pragma kernel SwapFilter
 
 #pragma kernel Conv2D_64
@@ -10,8 +15,6 @@
 #pragma kernel TransConv2D_256
 #pragma kernel TransConv2D_512
 #pragma kernel TransConv2D_1024
-
-#pragma enable_d3d11_debug_symbols
 
 Buffer<float> Input;
 Buffer<float> Filter;

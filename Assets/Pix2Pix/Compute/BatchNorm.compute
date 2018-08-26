@@ -1,3 +1,8 @@
+// Batch normalization kernels
+// https://github.com/keijiro/Pix2Pix
+
+#pragma enable_d3d11_debug_symbols
+
 #pragma kernel BatchNorm64
 #pragma kernel BatchNorm512
 
