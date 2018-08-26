@@ -1,62 +1,78 @@
 #ifndef CONVOLUTION_TRANSPOSE
 
-(uint3 tid : SV_DispatchThreadID, uint gid : SV_GroupIndex)
+(const uint3 tid : SV_DispatchThreadID)
 {
-    uint2 pos = tid.zy * 2;
-    uint2 pad = FilterShape.xy / 2 - 1;
+    const uint FilterSize = 4; // We assume FilterShape.xy == (4, 4)
+    const uint InputChannels = InputShape.z;
+
+    // pos - pad = (upper left corner)
+    const uint2 pos = tid.zy * 2;
+    const uint pad = FilterSize / 2 - 1;
 
     float prod = 0;
 
-    for (uint fy = 0; fy < FilterShape.x; fy++)
+    for (uint fy = 0; fy < FilterSize; fy++)
     {
-        for (uint fx = 0; fx < FilterShape.y; fx++)
+        for (uint fx = 0; fx < FilterSize; fx++)
         {
-            if (gid < InputShape.z)
-                cache[fx][gid] = GetInput(uint3(pos + uint2(fy, fx), gid), pad);
+            const uint cl = fx & 1; // Cache line selector
+
+            // Cache the input channel values in a memory coalescing fashion.
+            if (tid.x < InputChannels)
+                cache[cl][tid.x] = GetInput(uint3(pos + uint2(fy, fx), tid.x), pad);
 
             GroupMemoryBarrierWithGroupSync();
 
-            for (uint ic = 0; ic < InputShape.z; ic++)
-                prod += cache[fx][ic] * GetFilter(int4(fy, fx, ic, tid.x));
+            // Calculate the product with the filter. This is also expected to
+            // run in a memory coalescing fashion.
+            for (uint ic = 0; ic < InputChannels; ic++)
+                prod += GetFilter(int4(fy, fx, ic, tid.x)) * cache[cl][ic];
         }
     }
 
+    // Output with adding the bias.
     Output[OutputIndex(tid.zyx)] = prod + Bias[tid.x];
 }
 
 #else
 
-(uint3 tid : SV_DispatchThreadID, uint gid : SV_GroupIndex)
+(const uint3 tid : SV_DispatchThreadID)
 {
-    uint2 pos = (tid.zy + 1) / 2;
-    uint2 pad = 1;
+    const uint FilterSize = 4; // We assume FilterShape.xy == (4, 4)
+    const uint InputChannels = InputShape.z;
+    const uint OutputChannels = OutputShape.z;
 
     float prod = 0;
 
-    uint2 fd = tid.zy & 1;
-
-    for (uint fy = 0; fy < FilterShape.x; fy += 2)
+    for (uint fy = 0; fy < FilterSize; fy += 2)
     {
-        for (uint fx = 0; fx < FilterShape.y; fx += 2)
+        for (uint fx = 0; fx < FilterSize; fx += 2)
         {
-            uint2 fp = uint2(fy, fx) + fd;
+            const uint cl = fx >> 1; // Cache line selector
 
-            cache[fx][gid] = GetInput(uint3(pos + fp / 2, gid), pad);
+            // Actually (tid.zy & 1) should be added to (fy, fx) but we avoid
+            // it to prevent the loop counters depending the thread IDs. So, we
+            // recalculate them here.
+            const uint2 fyx = uint2(fy, fx) + (tid.zy & 1);
+
+            // Cache the input channel values in a memory coalescing fashion.
+            cache[cl][tid.x] = GetInput(uint3((tid.zy + fyx) / 2, tid.x), 1);
 
             GroupMemoryBarrierWithGroupSync();
 
-    if (gid < OutputShape.z)
-            for (uint ic = 0; ic < InputShape.z; ic++)
-            {
-                //float x = GetInput(uint3(pos + fp / 2, ic), pad);
-                float x = cache[fx][ic];
-                float w = GetFilter(uint4(FilterShape.xy - 1 - fp, ic, tid.x));
-                prod += x * w;
-            }
+            // Transposed version of fyx
+            const uint2 fyx_tr = FilterSize - 1 - fyx;
+
+            // Calculate the product with the filter. This is also expected to
+            // run in a memory coalescing fashion.
+            if (tid.x < OutputChannels)
+                for (uint ic = 0; ic < InputChannels; ic++)
+                    prod += GetFilter(uint4(fyx_tr, ic, tid.x)) * cache[cl][ic];
         }
     }
 
-    if (gid < OutputShape.z)
+    // Output with adding the bias.
+    if (tid.x < OutputChannels)
         Output[OutputIndex(tid.zyx)] = prod + Bias[tid.x];
 }
 

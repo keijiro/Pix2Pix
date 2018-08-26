@@ -124,6 +124,9 @@ namespace Pix2Pix
             //var outChannels = filter.Shape[trans ? 2 : 3];
             var outChannels = filter.Shape[3];
 
+            Debug.Assert(filter.Shape[0] == 4);
+            Debug.Assert(filter.Shape[1] == 4);
+
             Debug.Assert(outHeight   % tgn_z == 0);
             Debug.Assert(outWidth    % tgn_y == 0);
             //Debug.Assert(outChannels % tgn_x == 0);

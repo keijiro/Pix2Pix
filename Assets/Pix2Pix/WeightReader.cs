@@ -59,7 +59,6 @@ namespace Pix2Pix
 
                 if (info.name.Contains("conv2d_transpose/kernel"))
                 {
-                    UnityEngine.Debug.Log(info.name);
                     var t = table[info.name];
                     table[info.name] = GpuHelper.SwapFilter(t);
                     t.Dispose();
