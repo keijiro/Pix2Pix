@@ -3,18 +3,18 @@
 
 #pragma enable_d3d11_debug_symbols
 
-#pragma kernel SwapFilter
+#pragma kernel SwapFilter CACHESIZE=1
 
-#pragma kernel Conv2D_64
-#pragma kernel Conv2D_128
-#pragma kernel Conv2D_256
-#pragma kernel Conv2D_512
+#pragma kernel Conv2D_64 CACHESIZE=64
+#pragma kernel Conv2D_128 CACHESIZE=128
+#pragma kernel Conv2D_256 CACHESIZE=256
+#pragma kernel Conv2D_512 CACHESIZE=512
 
-#pragma kernel TransConv2D_64
-#pragma kernel TransConv2D_128
-#pragma kernel TransConv2D_256
-#pragma kernel TransConv2D_512
-#pragma kernel TransConv2D_final
+#pragma kernel TransConv2D_64 CACHESIZE=256
+#pragma kernel TransConv2D_128 CACHESIZE=512
+#pragma kernel TransConv2D_256 CACHESIZE=1024
+#pragma kernel TransConv2D_512 CACHESIZE=1024
+#pragma kernel TransConv2D_final CACHESIZE=128
 
 Buffer<float> Input;
 Buffer<float> Filter;
@@ -29,7 +29,7 @@ uint3 InputIndexer;
 uint4 FilterIndexer;
 uint3 OutputIndexer;
 
-groupshared float cache[2][1024];
+groupshared float cache[2][CACHESIZE];
 
 float GetInput(uint3 pos, uint2 pad)
 {

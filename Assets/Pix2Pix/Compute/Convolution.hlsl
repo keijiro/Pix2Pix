@@ -60,6 +60,8 @@
         #ifdef CONVOLUTION_TRANSPOSE_FINAL
             cache[cl][tid.x     ] = GetInput(uint3((tid.zy + fyx) / 2, tid.x     ), 1);
             cache[cl][tid.x + 32] = GetInput(uint3((tid.zy + fyx) / 2, tid.x + 32), 1);
+            cache[cl][tid.x + 64] = GetInput(uint3((tid.zy + fyx) / 2, tid.x + 64), 1);
+            cache[cl][tid.x + 96] = GetInput(uint3((tid.zy + fyx) / 2, tid.x + 96), 1);
         #else
             for (ic = 0; ic < InputChannels; ic += OutputChannels)
                 cache[cl][ic + tid.x] = GetInput(uint3((tid.zy + fyx) / 2, ic + tid.x), 1);
