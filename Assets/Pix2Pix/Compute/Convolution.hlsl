@@ -56,7 +56,14 @@
             const uint2 fyx = uint2(fy, fx) + (tid.zy & 1);
 
             // Cache the input channel values in a memory coalescing fashion.
-            cache[cl][tid.x] = GetInput(uint3((tid.zy + fyx) / 2, tid.x), 1);
+            uint ic;
+        #ifdef CONVOLUTION_TRANSPOSE_FINAL
+            cache[cl][tid.x     ] = GetInput(uint3((tid.zy + fyx) / 2, tid.x     ), 1);
+            cache[cl][tid.x + 32] = GetInput(uint3((tid.zy + fyx) / 2, tid.x + 32), 1);
+        #else
+            for (ic = 0; ic < InputChannels; ic += OutputChannels)
+                cache[cl][ic + tid.x] = GetInput(uint3((tid.zy + fyx) / 2, ic + tid.x), 1);
+        #endif
 
             GroupMemoryBarrierWithGroupSync();
 
@@ -65,15 +72,19 @@
 
             // Calculate the product with the filter. This is also expected to
             // run in a memory coalescing fashion.
+        #ifdef CONVOLUTION_TRANSPOSE_FINAL
             if (tid.x < OutputChannels)
-                for (uint ic = 0; ic < InputChannels; ic++)
-                    prod += GetFilter(uint4(fyx_tr, ic, tid.x)) * cache[cl][ic];
+        #endif
+            for (ic = 0; ic < InputChannels; ic++)
+                prod += GetFilter(uint4(fyx_tr, ic, tid.x)) * cache[cl][ic];
         }
     }
 
     // Output with adding the bias.
+#ifdef CONVOLUTION_TRANSPOSE_FINAL
     if (tid.x < OutputChannels)
-        Output[OutputIndex(tid.zyx)] = prod + Bias[tid.x];
+#endif
+    Output[OutputIndex(tid.zyx)] = prod + Bias[tid.x];
 }
 
 #endif

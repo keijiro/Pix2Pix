@@ -14,7 +14,7 @@
 #pragma kernel TransConv2D_128
 #pragma kernel TransConv2D_256
 #pragma kernel TransConv2D_512
-#pragma kernel TransConv2D_1024
+#pragma kernel TransConv2D_final
 
 Buffer<float> Input;
 Buffer<float> Filter;
@@ -87,5 +87,7 @@ void SwapFilter(uint2 tid : SV_DispatchThreadID)
 [numthreads(512, 1, 1)] void TransConv2D_512
 #include "Convolution.hlsl"
 
-[numthreads(1024, 1, 1)] void TransConv2D_1024
+#define CONVOLUTION_TRANSPOSE_FINAL
+
+[numthreads(32, 1, 1)] void TransConv2D_final
 #include "Convolution.hlsl"
