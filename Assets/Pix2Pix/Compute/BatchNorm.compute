@@ -3,7 +3,8 @@
 
 #pragma enable_d3d11_debug_symbols
 
-#pragma kernel BatchNorm
+#pragma kernel BatchNorm THREADS=32
+#pragma kernel BatchNormNested THREADS=16 SUBTHREADS=16
 
 Buffer<float> Input;
 Buffer<float> Scale;
@@ -14,30 +15,118 @@ int3 InputShape;
 
 float square(float x) { return x * x; }
 
-[numthreads(32, 1, 1)]
+#ifndef SUBTHREADS
+
+// Straightforward implementation of batch normalization
+
+[numthreads(THREADS, 1, 1)]
 void BatchNorm(const uint tid : SV_DispatchThreadID)
 {
-    const uint count = InputShape.x * InputShape.y;
+    const uint channel = tid;
+
+    const uint elements = InputShape.x * InputShape.y;
     const uint stride = InputShape.z;
 
     uint i;
 
+    // Calculate the mean value.
     float mean = 0;
-    for (i = 0; i < count; i++)
-        mean += Input[i * stride + tid];
-    mean /= count;
+    for (i = 0; i < elements; i++)
+        mean += Input[i * stride + channel];
+    mean /= elements;
 
+    // Calculate the variance value.
     float variance = 0;
-    for (i = 0; i < count; i++)
-        variance += square(Input[i * stride + tid] - mean);
-    variance /= count;
+    for (i = 0; i < elements; i++)
+        variance += square(Input[i * stride + channel] - mean);
+    variance /= elements;
 
-    float scale = Scale[tid] / sqrt(variance + 1e-5);
-    float offset = Offset[tid];
+    // Batched normalization
+    float scale = Scale[channel] / sqrt(variance + 1e-5);
+    float offset = Offset[channel];
 
-    for (i = 0; i < count; i++)
+    for (i = 0; i < elements; i++)
     {
-        uint idx = i * stride + tid;
+        uint idx = i * stride + channel;
         Output[idx] = (Input[idx] - mean) * scale + offset;
     }
 }
+
+#else
+
+// Batch normalization with nested parallel loop
+
+groupshared float sharedTemp[THREADS][SUBTHREADS];
+
+[numthreads(THREADS, SUBTHREADS, 1)]
+void BatchNormNested(
+    const uint tid : SV_DispatchThreadID,
+    const uint2 gid : SV_GroupThreadID
+)
+{
+    const uint channel = tid;
+    const uint thread = gid.x;
+    const uint subthread = gid.y;
+
+    const uint elements = InputShape.x * InputShape.y;
+    const uint stride = InputShape.z;
+
+    // Calculate the mean value with a nested parallel loop.
+
+    {
+        float acc = 0;
+        for (uint i = subthread; i < elements; i += SUBTHREADS)
+            acc += Input[i * stride + channel];
+        sharedTemp[thread][subthread] = acc;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (subthread == 0) // accumulate in the first subthread
+    {
+        float acc = 0;
+        [unroll] for (uint i = 0; i < SUBTHREADS; i++)
+            acc += sharedTemp[thread][i];
+        sharedTemp[thread][0] = acc / elements;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    float mean = sharedTemp[thread][0];
+
+    // Calculate the variance value with a nested parallel loop.
+
+    {
+        float acc = 0;
+        for (uint i = subthread; i < elements; i += SUBTHREADS)
+            acc += square(Input[i * stride + channel] - mean);
+        sharedTemp[thread][subthread] = acc;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (subthread == 0) // accumulate in the first subthread
+    {
+        float acc = 0;
+        [unroll] for (uint i = 0; i < SUBTHREADS; i++)
+            acc += sharedTemp[thread][i];
+        sharedTemp[thread][0] = acc / elements;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    float variance = sharedTemp[thread][0];
+
+    // Batch normalization
+
+    float scale = Scale[channel] / sqrt(variance + 1e-5);
+    float offset = Offset[channel];
+
+    for (uint i = subthread; i < elements; i += SUBTHREADS)
+    {
+        uint idx = i * stride + channel;
+        Output[idx] = (Input[idx] - mean) * scale + offset;
+    }
+}
+
+#endif

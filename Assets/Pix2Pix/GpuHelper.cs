@@ -57,18 +57,21 @@ namespace Pix2Pix
 
         public static Tensor InvokeBatchNormKernel(Tensor input, Tensor scale, Tensor offset)
         {
+            var channels = input.Shape[2];
+            var elements = input.Buffer.count / channels;
+
+            Debug.Assert(channels == scale .Buffer.count);
+            Debug.Assert(channels == offset.Buffer.count);
+
+            var kernelName = elements % 16 == 0 ? "BatchNormNested" : "BatchNorm";
+
             var compute = ComputeAssets.BatchNorm;
-            var kernel = compute.FindKernel("BatchNorm");
+            var kernel = compute.FindKernel(kernelName);
 
             uint tgn_x, tgn_y, tgn_z;
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
 
-            var length = input.Buffer.count;
-            var channels = input.Shape[2];
-
             Debug.Assert(channels % tgn_x == 0);
-            Debug.Assert(channels == scale .Buffer.count);
-            Debug.Assert(channels == offset.Buffer.count);
 
             var output = new Tensor(input.Shape);
 
