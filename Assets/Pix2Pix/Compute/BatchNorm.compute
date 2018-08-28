@@ -3,10 +3,7 @@
 
 #pragma enable_d3d11_debug_symbols
 
-#pragma kernel BatchNorm64
-#pragma kernel BatchNorm128
-#pragma kernel BatchNorm256
-#pragma kernel BatchNorm512
+#pragma kernel BatchNorm
 
 Buffer<float> Input;
 Buffer<float> Scale;
@@ -17,14 +14,30 @@ int3 InputShape;
 
 float square(float x) { return x * x; }
 
-[numthreads(64, 1, 1)] void BatchNorm64
-#include "BatchNorm.hlsl"
+[numthreads(32, 1, 1)]
+void BatchNorm(const uint tid : SV_DispatchThreadID)
+{
+    const uint count = InputShape.x * InputShape.y;
+    const uint stride = InputShape.z;
 
-[numthreads(128, 1, 1)] void BatchNorm128
-#include "BatchNorm.hlsl"
+    uint i;
 
-[numthreads(256, 1, 1)] void BatchNorm256
-#include "BatchNorm.hlsl"
+    float mean = 0;
+    for (i = 0; i < count; i++)
+        mean += Input[i * stride + tid];
+    mean /= count;
 
-[numthreads(512, 1, 1)] void BatchNorm512
-#include "BatchNorm.hlsl"
+    float variance = 0;
+    for (i = 0; i < count; i++)
+        variance += square(Input[i * stride + tid] - mean);
+    variance /= count;
+
+    float scale = Scale[tid] / sqrt(variance + 1e-5);
+    float offset = Offset[tid];
+
+    for (i = 0; i < count; i++)
+    {
+        uint idx = i * stride + tid;
+        Output[idx] = (Input[idx] - mean) * scale + offset;
+    }
+}

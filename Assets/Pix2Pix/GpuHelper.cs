@@ -55,12 +55,10 @@ namespace Pix2Pix
             return output;
         }
 
-        public static Tensor InvokeBatchNormKernel(
-            string name, Tensor input, Tensor scale, Tensor offset
-        )
+        public static Tensor InvokeBatchNormKernel(Tensor input, Tensor scale, Tensor offset)
         {
             var compute = ComputeAssets.BatchNorm;
-            var kernel = compute.FindKernel(name);
+            var kernel = compute.FindKernel("BatchNorm");
 
             uint tgn_x, tgn_y, tgn_z;
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
@@ -68,7 +66,7 @@ namespace Pix2Pix
             var length = input.Buffer.count;
             var channels = input.Shape[2];
 
-            Debug.Assert(channels == tgn_x);
+            Debug.Assert(channels % tgn_x == 0);
             Debug.Assert(channels == scale .Buffer.count);
             Debug.Assert(channels == offset.Buffer.count);
 
@@ -79,7 +77,7 @@ namespace Pix2Pix
             compute.SetBuffer(kernel, "Scale" , scale .Buffer);
             compute.SetBuffer(kernel, "Offset", offset.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
-            compute.Dispatch(kernel, 1, 1, 1);
+            compute.Dispatch(kernel, channels / (int)tgn_x, 1, 1);
 
             return output;
         }

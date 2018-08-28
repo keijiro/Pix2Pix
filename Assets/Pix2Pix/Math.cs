@@ -90,8 +90,7 @@ namespace Pix2Pix
 
         public static Tensor BatchNorm(Tensor input, Tensor scale, Tensor offset)
         {
-            var kernel = "BatchNorm" + scale.Shape[0];
-            return GpuHelper.InvokeBatchNormKernel(kernel, input, scale, offset);
+            return GpuHelper.InvokeBatchNormKernel(input, scale, offset);
         }
 
         public static Tensor Conv2D(Tensor input, Tensor filter, Tensor bias)
