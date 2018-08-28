@@ -146,11 +146,10 @@ namespace Pix2Pix
             compute.SetBuffer(kernel, "Bias"  , bias  .Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
 
-            compute.Dispatch(kernel,
-                (trans ? input.Shape[2] : outChannels) / (int)tgn_x,
-                outWidth    / (int)tgn_y,
-                outHeight   / (int)tgn_z
-            );
+            if (outChannels == 3)
+                compute.Dispatch(kernel, 1, outWidth, outHeight); // final convolution
+            else
+                compute.Dispatch(kernel, outChannels / (int)tgn_x, outWidth, outHeight);
 
             return output;
         }
