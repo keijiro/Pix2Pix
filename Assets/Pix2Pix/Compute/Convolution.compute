@@ -29,7 +29,7 @@ uint3 InputIndexer;
 uint4 FilterIndexer;
 uint3 OutputIndexer;
 
-groupshared float cache[2][CACHESIZE];
+groupshared float cache[CACHESIZE];
 
 float GetInput(uint3 pos, uint2 pad)
 {
