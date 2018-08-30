@@ -41,12 +41,17 @@ namespace Pix2Pix
 
             var output = new Tensor(new [] {height, width, channels * 2});
 
+            compute.SetInts("InputShape", input1.Shape);
             compute.SetBuffer(kernel, "Input1", input1.Buffer);
             compute.SetBuffer(kernel, "Input2", input2.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
 
-            compute.SetInts("InputShape", input1.Shape);
-            compute.Dispatch(kernel, 1, width * height, 1);
+            compute.Dispatch(
+                kernel,
+                channels / (int)tgn_x,
+                width * height / (int)tgn_y,
+                1
+            );
 
             return output;
         }
@@ -59,7 +64,7 @@ namespace Pix2Pix
             Debug.Assert(channels == scale .Buffer.count);
             Debug.Assert(channels == offset.Buffer.count);
 
-            var kernelName = elements % 16 == 0 ? "BatchNormNested" : "BatchNorm";
+            var kernelName = (elements % 16) == 0 ? "BatchNormNested" : "BatchNorm";
 
             var compute = ComputeAssets.BatchNorm;
             var kernel = compute.FindKernel(kernelName);

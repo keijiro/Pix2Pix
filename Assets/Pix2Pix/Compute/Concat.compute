@@ -11,18 +11,14 @@ RWBuffer<float> Output;
 
 uint3 InputShape;
 
-[numthreads(64, 1, 1)]
+[numthreads(64, 4, 1)]
 void Concat(uint2 tid : SV_DispatchThreadID)
 {
-    const uint channels = InputShape.z;
+    const uint stride = InputShape.z;
 
-    const uint offs_i = tid.y * channels;
-    const uint offs_o1 = tid.y * channels * 2;
-    const uint offs_o2 = offs_o1 + channels;
+    const uint offs_i = tid.x + tid.y * stride;
+    const uint offs_o = tid.x + tid.y * stride * 2;
 
-    for (uint i = tid.x; i < channels; i += 64)
-    {
-        Output[offs_o1 + i] = Input1[offs_i + i];
-        Output[offs_o2 + i] = Input2[offs_i + i];
-    }
+    Output[offs_o         ] = Input1[offs_i];
+    Output[offs_o + stride] = Input2[offs_i];
 }

@@ -41,7 +41,7 @@ void BatchNorm(const uint tid : SV_DispatchThreadID)
         variance += square(Input[i * stride + channel] - mean);
     variance /= elements;
 
-    // Batched normalization
+    // Batch normalization
     float scale = Scale[channel] / sqrt(variance + 1e-5);
     float offset = Offset[channel];
 
