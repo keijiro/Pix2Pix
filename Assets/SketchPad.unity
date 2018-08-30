@@ -453,6 +453,7 @@ MonoBehaviour:
   _resultRenderer: {fileID: 596056586}
   _drawArea: {x: 0.0225, y: 0.092, z: 0.494, w: 0.919}
   _defaultTexture: {fileID: 2800000, guid: 1d2b97a429e46084bb552205be0dc650, type: 3}
+  _textDisplay: {fileID: 2095124821}
   _shader: {fileID: 4800000, guid: 4bff63f1a4f22844c8df92b9e3765587, type: 3}
 --- !u!4 &1817016953
 Transform:
@@ -493,9 +494,8 @@ GameObject:
   - component: {fileID: 2095124819}
   - component: {fileID: 2095124822}
   - component: {fileID: 2095124821}
-  - component: {fileID: 2095124820}
   m_Layer: 5
-  m_Name: FPS
+  m_Name: Refresh Rate
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -519,18 +519,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &2095124820
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 2095124818}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c19fe75513dfdfb408c91c8eb05c719d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _text: {fileID: 2095124821}
 --- !u!114 &2095124821
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -563,7 +551,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 00.0 FPS
+  m_Text: Refresh rate
 --- !u!222 &2095124822
 CanvasRenderer:
   m_ObjectHideFlags: 0

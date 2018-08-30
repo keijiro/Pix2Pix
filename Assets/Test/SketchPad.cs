@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.IO;
 using System.Collections.Generic;
 
@@ -11,6 +12,7 @@ namespace Pix2Pix
         [SerializeField] Renderer _resultRenderer;
         [SerializeField] Vector4 _drawArea;
         [SerializeField] Texture _defaultTexture;
+        [SerializeField] Text _textDisplay;
 
         [SerializeField, HideInInspector] Shader _shader;
 
@@ -137,9 +139,13 @@ namespace Pix2Pix
             _mouseHistory = mousePosition;
         }
 
-        float _budget = 800;
+        float _budget = 1200;
         float _spent;
         IEnumerator<int> _itr;
+
+        readonly string [] _levels = {
+            "Poor", "Low", "Moderate", "Good", "Great", "Excellent"
+        };
 
         void UpdatePix2Pix()
         {
@@ -167,7 +173,11 @@ namespace Pix2Pix
 
             _spent -= _budget;
 
-            _budget -= Mathf.Max(Time.deltaTime * 60 - 1.2f, 0) * 4;
+            _budget -= Mathf.Max(Time.deltaTime * 60 - 1.2f, 0) * 5;
+
+            _textDisplay.text = "Refresh rate: " +
+                (60 * Mathf.Min(1.0f, _budget / 1000)).ToString("0.0") +
+                " Hz (" + _levels[(int)Mathf.Min(5, _budget / 100)] + ")";
         }
     }
 }
