@@ -144,7 +144,7 @@ namespace Pix2Pix
         IEnumerator<int> _itr;
 
         readonly string [] _levels = {
-            "Poor", "Low", "Moderate", "Good", "Great", "Excellent"
+            "N/A", "Poor", "Moderate", "Good", "Great", "Excellent"
         };
 
         void UpdatePix2Pix()
@@ -174,6 +174,7 @@ namespace Pix2Pix
             _spent -= _budget;
 
             _budget -= Mathf.Max(Time.deltaTime * 60 - 1.2f, 0) * 5;
+            _budget = Mathf.Max(150, _budget);
 
             _textDisplay.text = "Refresh rate: " +
                 (60 * Mathf.Min(1.0f, _budget / 1000)).ToString("0.0") +
