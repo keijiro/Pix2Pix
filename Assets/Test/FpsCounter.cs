@@ -10,6 +10,8 @@ class FpsCounter : MonoBehaviour
 
     IEnumerator Start()
     {
+        Time.maximumDeltaTime = 10;
+
         yield return new WaitForSeconds(0.5f);
 
         while (true)
