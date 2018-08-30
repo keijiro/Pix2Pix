@@ -19,7 +19,7 @@ namespace Pix2Pix
             Shape = shape;
 
             var total = shape.Aggregate(1, (acc, x) => acc * x);
-            Buffer = new ComputeBuffer(total, sizeof(float));
+            Buffer = GpuHelper.AllocateBuffer(total);
 
             if (data != null)
             {
@@ -51,13 +51,16 @@ namespace Pix2Pix
 
         void Dispose(bool disposing)
         {
-            if (Buffer != null)
+            if (disposing)
             {
-                Buffer.Dispose();
-                Buffer = null;
-            }
+                Shape = null;
 
-            if (disposing) Shape = null;
+                if (Buffer != null)
+                {
+                    GpuHelper.ReleaseBuffer(Buffer);
+                    Buffer = null;
+                }
+            }
         }
 
         #endregion
@@ -66,18 +69,29 @@ namespace Pix2Pix
 
         public static Tensor Relu(Tensor input)
         {
-            return GpuHelper.InvokeActivationKernel("Relu", input);
+            var output = new Tensor(input.Shape);
+            GpuHelper.InvokeActivationKernel("Relu", input, output);
+            return output;
         }
 
         public static Tensor LeakyRelu(Tensor input, float alpha)
         {
+            var output = new Tensor(input.Shape);
             ComputeAssets.Activation.SetFloat("Alpha", alpha);
-            return GpuHelper.InvokeActivationKernel("LeakyRelu", input);
+            GpuHelper.InvokeActivationKernel("LeakyRelu", input, output);
+            return output;
         }
 
         public static Tensor Tanh(Tensor input)
         {
-            return GpuHelper.InvokeActivationKernel("Tanh", input);
+            var output = new Tensor(input.Shape);
+            GpuHelper.InvokeActivationKernel("Tanh", input, output);
+            return output;
+        }
+
+        public static void Tanh(Tensor input, Tensor output)
+        {
+            GpuHelper.InvokeActivationKernel("Tanh", input, output);
         }
 
         public static Tensor Concat(Tensor input1, Tensor input2)

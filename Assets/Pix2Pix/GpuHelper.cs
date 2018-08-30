@@ -1,10 +1,32 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Pix2Pix
 {
     static class GpuHelper
     {
-        public static Tensor InvokeActivationKernel(string name, Tensor input)
+        static List<ComputeBuffer> _buffers = new List<ComputeBuffer>();
+
+        public static ComputeBuffer AllocateBuffer(int size)
+        {
+            var buffer = new ComputeBuffer(size, sizeof(float));
+            _buffers.Add(buffer);
+            return buffer;
+        }
+
+        public static void ReleaseBuffer(ComputeBuffer buffer)
+        {
+            _buffers.Remove(buffer);
+            buffer.Release();
+        }
+
+        public static void ReleaseAllBuffers()
+        {
+            foreach (var buffer in _buffers) buffer.Release();
+            _buffers.Clear();
+        }
+        
+        public static void InvokeActivationKernel(string name, Tensor input, Tensor output)
         {
             var compute = ComputeAssets.Activation;
             var kernel = compute.FindKernel(name);
@@ -16,11 +38,9 @@ namespace Pix2Pix
             var length = input.Buffer.count;
             Debug.Assert(length % tgn_x == 0);
 
-            var output = new Tensor(input.Shape);
             compute.SetBuffer(kernel, "Input", input.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
             compute.Dispatch(kernel, length / (int)tgn_x, 1, 1);
-            return output;
         }
 
         public static Tensor InvokeConcatKernel(Tensor input1, Tensor input2)

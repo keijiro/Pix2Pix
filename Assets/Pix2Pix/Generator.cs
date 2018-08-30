@@ -5,7 +5,11 @@ namespace Pix2Pix
 {
     static class Generator
     {
-        public static Tensor Apply(Tensor input, Dictionary<string, Tensor> weights)
+        static int[] _conv2DTimes = { 10, 45, 45, 45, 25, 5, 5, 5 };
+        static int[] _deconv2DTimes = { 90, 90, 90, 90, 45, 15, 5, 1 };
+
+        public static IEnumerator<int>
+            Apply(Tensor input, Dictionary<string, Tensor> weights, Tensor output)
         {
             var layers = new Stack<Tensor>();
 
@@ -14,6 +18,8 @@ namespace Pix2Pix
                 weights["generator/encoder_1/conv2d/kernel"],
                 weights["generator/encoder_1/conv2d/bias"]
             ));
+
+            yield return _conv2DTimes[0];
 
             for (var i = 2; i <= 8; i++)
             {
@@ -32,6 +38,8 @@ namespace Pix2Pix
 
                 rect.Dispose();
                 conv.Dispose();
+
+                yield return _conv2DTimes[i - 1];
             }
 
             var decoding = layers.Pop();
@@ -65,6 +73,8 @@ namespace Pix2Pix
                 decoding.Dispose();
 
                 decoding = norm;
+
+                yield return _deconv2DTimes[i - 1];
             }
 
             {
@@ -75,7 +85,7 @@ namespace Pix2Pix
                 var join = Tensor.Concat(decoding, skip);
                 var rect = Tensor.Relu(join);
                 var conv = Tensor.Deconv2D(rect, kernel, bias);
-                var tanh = Tensor.Tanh(conv);
+                Tensor.Tanh(conv, output);
 
                 decoding.Dispose();
                 skip.Dispose();
@@ -83,7 +93,7 @@ namespace Pix2Pix
                 rect.Dispose();
                 conv.Dispose();
 
-                return tanh;
+                yield return _deconv2DTimes[0];
             }
         }
     }
