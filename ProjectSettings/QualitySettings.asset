@@ -26,7 +26,7 @@ QualitySettings:
     softVegetation: 0
     realtimeReflectionProbes: 0
     billboardsFaceCameraPosition: 0
-    vSyncCount: 0
+    vSyncCount: 1
     lodBias: 0.7
     maximumLODLevel: 0
     streamingMipmapsActive: 0

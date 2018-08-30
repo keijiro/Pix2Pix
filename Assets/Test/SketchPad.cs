@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.IO;
 using System.Collections.Generic;
 
@@ -11,6 +12,7 @@ namespace Pix2Pix
         [SerializeField] Renderer _resultRenderer;
         [SerializeField] Vector4 _drawArea;
         [SerializeField] Texture _defaultTexture;
+        [SerializeField] Text _textDisplay;
 
         [SerializeField, HideInInspector] Shader _shader;
 
@@ -28,10 +30,10 @@ namespace Pix2Pix
 
         Dictionary<string, Tensor> _weightTable;
         Tensor _sourceTensor;
+        Tensor _resultTensor;
 
         Vector3 TransformMousePosition(Vector3 p)
         {
-            //Debug.Log(p.x / Screen.width + "/" + p.y / Screen.height);
             var x = (p.x / Screen.width  - _drawArea.x) / (_drawArea.z - _drawArea.x);
             var y = (p.y / Screen.height - _drawArea.y) / (_drawArea.w - _drawArea.y);
             return new Vector3(x * 2 - 1, 1 - y * 2, 0);
@@ -71,10 +73,13 @@ namespace Pix2Pix
 
             _weightTable = WeightReader.ReadFromFile(Path.Combine(Application.streamingAssetsPath, _weightFileName));
             _sourceTensor = new Tensor(new[]{256, 256, 3});
+            _resultTensor = new Tensor(new[]{256, 256, 3});
         }
 
         void OnDestroy()
         {
+            GpuHelper.ReleaseAllBuffers();
+
             Destroy(_sourceTexture);
             Destroy(_resultTexture);
 
@@ -86,6 +91,7 @@ namespace Pix2Pix
 
             WeightReader.DisposeTable(_weightTable);
             _sourceTensor.Dispose();
+            _resultTensor.Dispose();
         }
 
         void Update()
@@ -133,14 +139,46 @@ namespace Pix2Pix
             _mouseHistory = mousePosition;
         }
 
+        float _budget = 1200;
+        float _spent;
+        IEnumerator<int> _itr;
+
+        readonly string [] _levels = {
+            "N/A", "Poor", "Moderate", "Good", "Great", "Excellent"
+        };
+
         void UpdatePix2Pix()
         {
-            ImageFilter.Preprocess(_sourceTexture, _sourceTensor);
-            var generated = Generator.Apply(_sourceTensor, _weightTable);
-            ImageFilter.Deprocess(generated, _resultTexture);
-            generated.Dispose();
+            if (_itr == null)
+            {
+                ImageFilter.Preprocess(_sourceTexture, _sourceTensor);
+                _itr = Generator.Apply(_sourceTensor, _weightTable, _resultTensor);
+            }
 
-            //ImageFilter.Deprocess(_sourceTensor, _resultTexture);
+            while (_spent < _budget)
+            {
+                if (!_itr.MoveNext())
+                {
+                    ImageFilter.Deprocess(_resultTensor, _resultTexture);
+                    _spent += _itr.Current;
+
+                    ImageFilter.Preprocess(_sourceTexture, _sourceTensor);
+                    _itr = Generator.Apply(_sourceTensor, _weightTable, _resultTensor);
+                }
+                else
+                {
+                    _spent += _itr.Current;
+                }
+            }
+
+            _spent -= _budget;
+
+            _budget -= Mathf.Max(Time.deltaTime * 60 - 1.2f, 0) * 5;
+            _budget = Mathf.Max(150, _budget);
+
+            _textDisplay.text = "Refresh rate: " +
+                (60 * Mathf.Min(1.0f, _budget / 1000)).ToString("0.0") +
+                " Hz (" + _levels[(int)Mathf.Min(5, _budget / 100)] + ")";
         }
     }
 }
