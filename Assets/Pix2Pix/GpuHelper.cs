@@ -23,34 +23,30 @@ namespace Pix2Pix
             return output;
         }
 
-        public static Tensor InvokeConcatKernel(string name, Tensor input1, Tensor input2)
+        public static Tensor InvokeConcatKernel(Tensor input1, Tensor input2)
         {
             var compute = ComputeAssets.Concat;
-            var kernel = compute.FindKernel(name);
+            var kernel = compute.FindKernel("Concat");
 
             uint tgn_x, tgn_y, tgn_z;
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
-            Debug.Assert(tgn_y == 1 && tgn_z == 1);
 
-            var height = input1.Shape[0];
-            var width  = input1.Shape[1];
-            var channels1 = input1.Shape[2];
-            var channels2 = input2.Shape[2];
+            var height   = input1.Shape[0];
+            var width    = input1.Shape[1];
+            var channels = input1.Shape[2];
 
             Debug.Assert(input2.Shape[0] == height);
             Debug.Assert(input2.Shape[1] == width);
-            Debug.Assert(width * height % tgn_x == 0);
+            Debug.Assert(input2.Shape[2] == channels);
 
-            var output = new Tensor(new [] {height, width, channels1 + channels2});
+            var output = new Tensor(new [] {height, width, channels * 2});
 
             compute.SetBuffer(kernel, "Input1", input1.Buffer);
             compute.SetBuffer(kernel, "Input2", input2.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
 
-            compute.SetInts("Input1Shape", input1.Shape);
-            compute.SetInts("Input2Shape", input2.Shape);
-
-            compute.Dispatch(kernel, width * height / (int)tgn_x, 1, 1);
+            compute.SetInts("InputShape", input1.Shape);
+            compute.Dispatch(kernel, 1, width * height, 1);
 
             return output;
         }

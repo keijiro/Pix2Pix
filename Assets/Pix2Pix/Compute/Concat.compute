@@ -3,22 +3,26 @@
 
 #pragma enable_d3d11_debug_symbols
 
-#pragma kernel Concat4
-#pragma kernel Concat64
-#pragma kernel Concat512
+#pragma kernel Concat
 
 Buffer<float> Input1;
 Buffer<float> Input2;
 RWBuffer<float> Output;
 
-uint3 Input1Shape;
-uint3 Input2Shape;
+uint3 InputShape;
 
-[numthreads(4, 1, 1)] void Concat4
-#include "Concat.hlsl"
+[numthreads(64, 1, 1)]
+void Concat(uint2 tid : SV_DispatchThreadID)
+{
+    const uint channels = InputShape.z;
 
-[numthreads(64, 1, 1)] void Concat64
-#include "Concat.hlsl"
+    const uint offs_i = tid.y * channels;
+    const uint offs_o1 = tid.y * channels * 2;
+    const uint offs_o2 = offs_o1 + channels;
 
-[numthreads(512, 1, 1)] void Concat512
-#include "Concat.hlsl"
+    for (uint i = tid.x; i < channels; i += 64)
+    {
+        Output[offs_o1 + i] = Input1[offs_i + i];
+        Output[offs_o2 + i] = Input2[offs_i + i];
+    }
+}

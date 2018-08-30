@@ -82,10 +82,7 @@ namespace Pix2Pix
 
         public static Tensor Concat(Tensor input1, Tensor input2)
         {
-            var elements = input1.Shape[0] * input1.Shape[1];
-            var kernel = elements < 512 ? "Concat64" : "Concat512";
-            if (elements < 64) kernel = "Concat4";
-            return GpuHelper.InvokeConcatKernel(kernel, input1, input2);
+            return GpuHelper.InvokeConcatKernel(input1, input2);
         }
 
         public static Tensor BatchNorm(Tensor input, Tensor scale, Tensor offset)
