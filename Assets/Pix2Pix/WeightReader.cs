@@ -55,14 +55,19 @@ namespace Pix2Pix
                 var data = new float[length];
                 for (var j = 0; j < length; j++) data[j] = values[reader.ReadByte()];
 
-                table[info.name] = new Tensor(info.shape, data);
+                var tensor = new Tensor(info.shape, data);
 
                 if (info.name.Contains("conv2d_transpose/kernel"))
                 {
-                    var t = table[info.name];
-                    table[info.name] = GpuHelper.ReorderWeights(t);
-                    t.Dispose();
+                    var temp = new Tensor(new[]{
+                        info.shape[0], info.shape[1], info.shape[3], info.shape[2]
+                    });
+                    GpuHelper.InvokeReorderWeights(tensor, temp);
+                    tensor.Dispose();
+                    tensor = temp;
                 }
+
+                table[info.name] = tensor;
             }
 
             return table;

@@ -1,122 +1,119 @@
-using UnityEngine;
-using System.Linq;
+// Tensor math operations
+// https://github.com/keijiro/Pix2Pix
 
 namespace Pix2Pix
 {
-    public sealed class Tensor : System.IDisposable
+    public static class Math
     {
-        #region Public fields
+        // ReLU activation function
 
-        public int[] Shape;
-        public ComputeBuffer Buffer;
-
-        #endregion
-
-        #region Constructor and other common methods
-
-        public Tensor(int[] shape, float[] data = null)
+        public static void Relu(Tensor input, Tensor output)
         {
-            Shape = shape;
-
-            var total = shape.Aggregate(1, (acc, x) => acc * x);
-            Buffer = GpuHelper.AllocateBuffer(total);
-
-            if (data != null)
-            {
-                Debug.Assert(data.Length == total);
-                Buffer.SetData(data);
-            }
+            GpuHelper.InvokeActivation("Relu", input, output);
         }
-
-        public override string ToString()
-        {
-            return "Tensor " +
-                string.Join("x", Shape.Select(x => x.ToString()).ToArray());
-        }
-
-        #endregion
-
-        #region IDisposable implementation
-
-        public void Dispose()
-        { 
-            Dispose(true);
-            System.GC.SuppressFinalize(this);           
-        }
-
-        ~Tensor()
-        {
-            Dispose(false);
-        }
-
-        void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Shape = null;
-
-                if (Buffer != null)
-                {
-                    GpuHelper.ReleaseBuffer(Buffer);
-                    Buffer = null;
-                }
-            }
-        }
-
-        #endregion
-
-        #region Math operations
 
         public static Tensor Relu(Tensor input)
         {
             var output = new Tensor(input.Shape);
-            GpuHelper.InvokeActivationKernel("Relu", input, output);
+            Relu(input, output);
             return output;
+        }
+
+        // Leaky ReLU activation function
+
+        public static void LeakyRelu(Tensor input, float alpha, Tensor output)
+        {
+            ComputeAssets.Activation.SetFloat("Alpha", alpha);
+            GpuHelper.InvokeActivation("LeakyRelu", input, output);
         }
 
         public static Tensor LeakyRelu(Tensor input, float alpha)
         {
             var output = new Tensor(input.Shape);
-            ComputeAssets.Activation.SetFloat("Alpha", alpha);
-            GpuHelper.InvokeActivationKernel("LeakyRelu", input, output);
+            LeakyRelu(input, alpha, output);
             return output;
+        }
+
+        // Tanh activation function
+
+        public static void Tanh(Tensor input, Tensor output)
+        {
+            GpuHelper.InvokeActivation("Tanh", input, output);
         }
 
         public static Tensor Tanh(Tensor input)
         {
             var output = new Tensor(input.Shape);
-            GpuHelper.InvokeActivationKernel("Tanh", input, output);
+            Tanh(input, output);
             return output;
         }
 
-        public static void Tanh(Tensor input, Tensor output)
+        // Tensor concatenation function
+
+        public static void Concat(Tensor input1, Tensor input2, Tensor output)
         {
-            GpuHelper.InvokeActivationKernel("Tanh", input, output);
+            GpuHelper.InvokeConcat(input1, input2, output);
         }
 
         public static Tensor Concat(Tensor input1, Tensor input2)
         {
-            return GpuHelper.InvokeConcatKernel(input1, input2);
+            var output = new Tensor(new[]{
+                input1.Shape[0],
+                input1.Shape[1],
+                input1.Shape[2] * 2
+            });
+            Concat(input1, input2, output);
+            return output;
+        }
+
+        // Batch normalization
+
+        public static void BatchNorm(Tensor input, Tensor scale, Tensor offset, Tensor output)
+        {
+            GpuHelper.InvokeBatchNorm(input, scale, offset, output);
         }
 
         public static Tensor BatchNorm(Tensor input, Tensor scale, Tensor offset)
         {
-            return GpuHelper.InvokeBatchNormKernel(input, scale, offset);
+            var output = new Tensor(input.Shape);
+            GpuHelper.InvokeBatchNorm(input, scale, offset, output);
+            return output;
+        }
+
+        // 2D convolution
+
+        public static void Conv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
+        {
+            GpuHelper.InvokeConv2D(input, filter, bias, output);
         }
 
         public static Tensor Conv2D(Tensor input, Tensor filter, Tensor bias)
         {
-            var kernel = "Conv2D_" + filter.Shape[3];
-            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Down, kernel, input, filter, bias);
+            var output = new Tensor(new[]{
+                input.Shape[0] / 2,
+                input.Shape[1] / 2,
+                filter.Shape[3]
+            });
+            Conv2D(input, filter, bias, output);
+            return output;
+        }
+
+        // 2D transposed convolution
+
+        public static void Deconv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
+        {
+            GpuHelper.InvokeDeconv2D(input, filter, bias, output);
         }
 
         public static Tensor Deconv2D(Tensor input, Tensor filter, Tensor bias)
         {
-            var channels = filter.Shape[3];
-            var kernel = "TransConv2D_" + (channels == 3 ? "final" : channels.ToString());
-            return GpuHelper.InvokeConvolutionKernel(GpuHelper.ConvolutionMode.Up, kernel, input, filter, bias);
+            var output = new Tensor(new[]{
+                input.Shape[0] * 2,
+                input.Shape[1] * 2,
+                filter.Shape[3]
+            });
+            Deconv2D(input, filter, bias, output);
+            return output;
         }
-
-        #endregion
     }
 }

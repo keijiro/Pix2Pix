@@ -5,6 +5,8 @@ namespace Pix2Pix
 {
     static class GpuHelper
     {
+        #region Compute buffer management
+
         static List<ComputeBuffer> _buffers = new List<ComputeBuffer>();
 
         public static ComputeBuffer AllocateBuffer(int size)
@@ -25,32 +27,31 @@ namespace Pix2Pix
             foreach (var buffer in _buffers) buffer.Release();
             _buffers.Clear();
         }
+
+        #endregion
+
+        #region Compute kernel invocation methods
         
-        public static void InvokeActivationKernel(string name, Tensor input, Tensor output)
+        public static void InvokeActivation(string name, Tensor input, Tensor output)
         {
+            Debug.Assert(input.Shape[0] == output.Shape[0]);
+            Debug.Assert(input.Shape[1] == output.Shape[1]);
+            Debug.Assert(input.Shape[2] == output.Shape[2]);
+
             var compute = ComputeAssets.Activation;
             var kernel = compute.FindKernel(name);
-
-            uint tgn_x, tgn_y, tgn_z;
-            compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
-            Debug.Assert(tgn_y == 1 && tgn_z == 1);
+            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
 
             var length = input.Buffer.count;
-            Debug.Assert(length % tgn_x == 0);
+            Debug.Assert(length % threadCount.x == 0);
 
-            compute.SetBuffer(kernel, "Input", input.Buffer);
+            compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
-            compute.Dispatch(kernel, length / (int)tgn_x, 1, 1);
+            compute.Dispatch(kernel, length / threadCount.x, 1, 1);
         }
 
-        public static Tensor InvokeConcatKernel(Tensor input1, Tensor input2)
+        public static void InvokeConcat(Tensor input1, Tensor input2, Tensor output)
         {
-            var compute = ComputeAssets.Concat;
-            var kernel = compute.FindKernel("Concat");
-
-            uint tgn_x, tgn_y, tgn_z;
-            compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
-
             var height   = input1.Shape[0];
             var width    = input1.Shape[1];
             var channels = input1.Shape[2];
@@ -59,58 +60,145 @@ namespace Pix2Pix
             Debug.Assert(input2.Shape[1] == width);
             Debug.Assert(input2.Shape[2] == channels);
 
-            var output = new Tensor(new [] {height, width, channels * 2});
+            Debug.Assert(output.Shape[0] == height);
+            Debug.Assert(output.Shape[1] == width);
+            Debug.Assert(output.Shape[2] == channels * 2);
+
+            var compute = ComputeAssets.Concat;
+            var kernel = compute.FindKernel("Concat");
+            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+
+            Debug.Assert(channels % threadCount.x == 0);
+            Debug.Assert((width * height) % threadCount.y == 0);
 
             compute.SetInts("InputShape", input1.Shape);
             compute.SetBuffer(kernel, "Input1", input1.Buffer);
             compute.SetBuffer(kernel, "Input2", input2.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
-
-            compute.Dispatch(
-                kernel,
-                channels / (int)tgn_x,
-                width * height / (int)tgn_y,
-                1
-            );
-
-            return output;
+            compute.Dispatch(kernel, channels / threadCount.x, width * height / threadCount.y, 1);
         }
 
-        public static Tensor InvokeBatchNormKernel(Tensor input, Tensor scale, Tensor offset)
+        public static void InvokeBatchNorm(Tensor input, Tensor scale, Tensor offset, Tensor output)
         {
+            Debug.Assert(input.Shape[0] == output.Shape[0]);
+            Debug.Assert(input.Shape[1] == output.Shape[1]);
+            Debug.Assert(input.Shape[2] == output.Shape[2]);
+
             var channels = input.Shape[2];
             var elements = input.Buffer.count / channels;
+            var nestable = (elements % 16 == 0);
 
             Debug.Assert(channels == scale .Buffer.count);
             Debug.Assert(channels == offset.Buffer.count);
 
-            var kernelName = (elements % 16) == 0 ? "BatchNormNested" : "BatchNorm";
-
             var compute = ComputeAssets.BatchNorm;
-            var kernel = compute.FindKernel(kernelName);
+            var kernel = compute.FindKernel(nestable ? "BatchNormNested" : "BatchNorm");
+            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
 
-            uint tgn_x, tgn_y, tgn_z;
-            compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
-
-            Debug.Assert(channels % tgn_x == 0);
-
-            var output = new Tensor(input.Shape);
+            Debug.Assert(channels % threadCount.x == 0);
 
             compute.SetInts("InputShape", input.Shape);
             compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Scale" , scale .Buffer);
             compute.SetBuffer(kernel, "Offset", offset.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
-            compute.Dispatch(kernel, channels / (int)tgn_x, 1, 1);
-
-            return output;
+            compute.Dispatch(kernel, channels / threadCount.x, 1, 1);
         }
 
-        public enum ConvolutionMode { Down, Up }
+        public static void InvokeConv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
+        {
+            Debug.Assert(output.Shape[0] == input.Shape[0] / 2);
+            Debug.Assert(output.Shape[1] == input.Shape[1] / 2);
+
+            var outChannels = filter.Shape[3];
+            Debug.Assert(output.Shape[2] == outChannels);
+
+            var kernelName = "Conv2D_" + outChannels;
+            InvokeConv2DInternal(kernelName, input, filter, bias, output);
+        }
+
+        public static void InvokeDeconv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
+        {
+            Debug.Assert(output.Shape[0] == input.Shape[0] * 2);
+            Debug.Assert(output.Shape[1] == input.Shape[1] * 2);
+
+            var outChannels = filter.Shape[3];
+            Debug.Assert(output.Shape[2] == outChannels);
+
+            var kernelName = "TransConv2D_" + (outChannels == 3 ? "final" : outChannels.ToString());
+            InvokeConv2DInternal(kernelName, input, filter, bias, output);
+        }
+
+        static void InvokeConv2DInternal(
+            string kernelName, Tensor input, Tensor filter, Tensor bias, Tensor output
+        )
+        {
+            Debug.Assert(filter.Shape[0] == 4);
+            Debug.Assert(filter.Shape[1] == 4);
+            Debug.Assert(filter.Shape[2] == input.Shape[2]);
+
+            var outChannels = filter.Shape[3];
+            Debug.Assert(bias.Shape[0] == outChannels);
+
+            var compute = ComputeAssets.Convolution;
+            var kernel = compute.FindKernel(kernelName);
+            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+
+            Debug.Assert(outChannels % threadCount.x == 0 || outChannels == 3);
+
+            compute.SetInts( "InputShape", input .Shape);
+            compute.SetInts("FilterShape", filter.Shape);
+            compute.SetInts("OutputShape", output.Shape);
+
+            compute.SetInts( "InputIndexer", CalculateIndexer(input .Shape));
+            compute.SetInts("FilterIndexer", CalculateIndexer(filter.Shape));
+            compute.SetInts("OutputIndexer", CalculateIndexer(output.Shape));
+
+            compute.SetBuffer(kernel, "Input" , input .Buffer);
+            compute.SetBuffer(kernel, "Filter", filter.Buffer);
+            compute.SetBuffer(kernel, "Bias"  , bias  .Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
+
+            var groupCount = Mathf.Max(1, outChannels / threadCount.x);
+            compute.Dispatch(kernel, groupCount, output.Shape[1], output.Shape[0]);
+        }
+
+        public static void InvokeReorderWeights(Tensor input, Tensor output)
+        {
+            var compute = ComputeAssets.Setup;
+            var kernel = compute.FindKernel("ReorderWeights");
+
+            Debug.Assert(input.Shape[0] == output.Shape[0]);
+            Debug.Assert(input.Shape[1] == output.Shape[1]);
+            Debug.Assert(input.Shape[2] == output.Shape[3]);
+            Debug.Assert(input.Shape[3] == output.Shape[2]);
+
+            compute.SetInts("InputShape" , input .Shape);
+            compute.SetInts("OutputShape", output.Shape);
+
+            compute.SetInts("InputIndexer" , CalculateIndexer(input .Shape));
+            compute.SetInts("OutputIndexer", CalculateIndexer(output.Shape));
+
+            compute.SetBuffer(kernel, "Input" , input .Buffer);
+            compute.SetBuffer(kernel, "Output", output.Buffer);
+
+            compute.Dispatch(kernel, input.Shape[0], input.Shape[1], 1);
+        }
+
+        #endregion
+
+        #region Internal helpers
+
+        static Vector3Int GetKernelThreadGroupSizeVector(this ComputeShader self, int kernel)
+        {
+            uint tgs_x, tgs_y, tgs_z;
+            self.GetKernelThreadGroupSizes(kernel, out tgs_x, out tgs_y, out tgs_z);
+            return new Vector3Int((int)tgs_x, (int)tgs_y, (int)tgs_z);
+        }
 
         static int[] _tempIndexVector = new int[4];
 
-        static int[] CalculateIndexVector(int[] shape)
+        static int[] CalculateIndexer(int[] shape)
         {
             if (shape.Length == 4)
             {
@@ -129,71 +217,6 @@ namespace Pix2Pix
             return _tempIndexVector;
         }
 
-        public static Tensor InvokeConvolutionKernel(
-            ConvolutionMode mode, string name, Tensor input, Tensor filter, Tensor bias
-        )
-        {
-            var compute = ComputeAssets.Convolution;
-            var kernel = compute.FindKernel(name);
-
-            uint tgn_x, tgn_y, tgn_z;
-            compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
-
-            var trans = (mode == ConvolutionMode.Up);
-
-            var outHeight = trans ? input.Shape[0] * 2 : input.Shape[0] / 2;
-            var outWidth  = trans ? input.Shape[1] * 2 : input.Shape[1] / 2;
-            //var outChannels = filter.Shape[trans ? 2 : 3];
-            var outChannels = filter.Shape[3];
-
-            Debug.Assert(filter.Shape[0] == 4);
-            Debug.Assert(filter.Shape[1] == 4);
-
-            Debug.Assert(outHeight   % tgn_z == 0);
-            Debug.Assert(outWidth    % tgn_y == 0);
-            //Debug.Assert(outChannels % tgn_x == 0);
-
-            var output = new Tensor(new [] {outHeight, outWidth, outChannels});
-
-            compute.SetInts( "InputShape", input .Shape);
-            compute.SetInts("FilterShape", filter.Shape);
-            compute.SetInts("OutputShape", output.Shape);
-
-            compute.SetInts( "InputIndexer", CalculateIndexVector(input .Shape));
-            compute.SetInts("FilterIndexer", CalculateIndexVector(filter.Shape));
-            compute.SetInts("OutputIndexer", CalculateIndexVector(output.Shape));
-
-            compute.SetBuffer(kernel, "Input" , input .Buffer);
-            compute.SetBuffer(kernel, "Filter", filter.Buffer);
-            compute.SetBuffer(kernel, "Bias"  , bias  .Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
-
-            if (outChannels == 3)
-                compute.Dispatch(kernel, 1, outWidth, outHeight); // final convolution
-            else
-                compute.Dispatch(kernel, outChannels / (int)tgn_x, outWidth, outHeight);
-
-            return output;
-        }
-
-        public static Tensor ReorderWeights(Tensor input)
-        {
-            var compute = ComputeAssets.Setup;
-            var kernel = compute.FindKernel("ReorderWeights");
-
-            var shape = input.Shape;
-            var output = new Tensor(new [] {shape[0], shape[1], shape[3], shape[2]});
-
-            compute.SetInts("InputShape", input.Shape);
-            compute.SetInts("OutputShape", output.Shape);
-            compute.SetInts("InputIndexer", CalculateIndexVector(input.Shape));
-            compute.SetInts("OutputIndexer", CalculateIndexVector(output.Shape));
-
-            compute.SetBuffer(kernel, "Input", input.Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
-            compute.Dispatch(kernel, shape[0], shape[1], 1);
-
-            return output;
-        }
+        #endregion
     }
 }

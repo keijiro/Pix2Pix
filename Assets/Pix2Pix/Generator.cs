@@ -13,7 +13,7 @@ namespace Pix2Pix
         {
             var layers = new Stack<Tensor>();
 
-            layers.Push(Tensor.Conv2D(
+            layers.Push(Math.Conv2D(
                 input,
                 weights["generator/encoder_1/conv2d/kernel"],
                 weights["generator/encoder_1/conv2d/bias"]
@@ -30,9 +30,9 @@ namespace Pix2Pix
                 var beta   = weights[scope + "/batch_normalization/beta"];
                 var gamma  = weights[scope + "/batch_normalization/gamma"];
 
-                var rect = Tensor.LeakyRelu(layers.Peek(), 0.2f);
-                var conv = Tensor.Conv2D(rect, kernel, bias);
-                var norm = Tensor.BatchNorm(conv, gamma, beta);
+                var rect = Math.LeakyRelu(layers.Peek(), 0.2f);
+                var conv = Math.Conv2D(rect, kernel, bias);
+                var norm = Math.BatchNorm(conv, gamma, beta);
 
                 layers.Push(norm);
 
@@ -58,15 +58,15 @@ namespace Pix2Pix
                     var prev = decoding;
                     var skip = layers.Pop();
 
-                    decoding = Tensor.Concat(prev, skip);
+                    decoding = Math.Concat(prev, skip);
 
                     prev.Dispose();
                     skip.Dispose();
                 }
 
-                var rect = Tensor.Relu(decoding);
-                var conv = Tensor.Deconv2D(rect, kernel, bias);
-                var norm = Tensor.BatchNorm(conv, gamma, beta);
+                var rect = Math.Relu(decoding);
+                var conv = Math.Deconv2D(rect, kernel, bias);
+                var norm = Math.BatchNorm(conv, gamma, beta);
 
                 rect.Dispose();
                 conv.Dispose();
@@ -82,10 +82,10 @@ namespace Pix2Pix
                 var bias   = weights["generator/decoder_1/conv2d_transpose/bias"];
 
                 var skip = layers.Pop();
-                var join = Tensor.Concat(decoding, skip);
-                var rect = Tensor.Relu(join);
-                var conv = Tensor.Deconv2D(rect, kernel, bias);
-                Tensor.Tanh(conv, output);
+                var join = Math.Concat(decoding, skip);
+                var rect = Math.Relu(join);
+                var conv = Math.Deconv2D(rect, kernel, bias);
+                Math.Tanh(conv, output);
 
                 decoding.Dispose();
                 skip.Dispose();
