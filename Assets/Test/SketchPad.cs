@@ -150,7 +150,7 @@ namespace Pix2Pix
             if (_itr == null)
             {
                 Image.ConvertToTensor(_sourceTexture, _sourceTensor);
-                _itr = Generator.Apply(_sourceTensor, _weightTable, _resultTensor);
+                _itr = Generator.Start(_sourceTensor, _weightTable, _resultTensor);
             }
 
             while (_spent < _budget)
@@ -161,7 +161,7 @@ namespace Pix2Pix
                     _spent += _itr.Current;
 
                     Image.ConvertToTensor(_sourceTexture, _sourceTensor);
-                    _itr = Generator.Apply(_sourceTensor, _weightTable, _resultTensor);
+                    _itr = Generator.Start(_sourceTensor, _weightTable, _resultTensor);
                 }
                 else
                 {

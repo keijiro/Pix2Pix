@@ -1,25 +1,37 @@
+// Pix2Pix generator model
+// https://github.com/keijiro/Pix2Pix
+
+// This class runs the network in a coroutine-like fashion. It doesn't use
+// Unity's standard coroutine system but an ad-hoc enumerator to manage the
+// progress and internal state. The enumerator returns a heuristic cost value
+// for each step that can be used to estimate the GPU load.
+
 using UnityEngine;
 using System.Collections.Generic;
 
 namespace Pix2Pix
 {
-    static class Generator
+    public static class Generator
     {
-        static int[] _conv2DCosts = { 14, 74, 74, 74, 40, 10, 6, 6 };
-        static int[] _deconv2DCosts = { 150, 150, 150, 150, 74, 20, 6, 2 };
+        // Heuristic costs of each layer (total = 1,000)
+        static readonly int[] _encoderCosts = { 14, 74, 74, 74, 40, 10, 6, 6 };
+        static readonly int[] _decoderCosts = { 150, 150, 150, 150, 74, 20, 6, 2 };
 
-        public static IEnumerator<int>
-            Apply(Tensor input, Dictionary<string, Tensor> weights, Tensor output)
+        // Start the coroutine-like enumerator.
+        public static IEnumerator<int> Start
+            (Tensor input, Dictionary<string, Tensor> weights, Tensor output)
         {
             var layers = new Stack<Tensor>();
 
-            layers.Push(Math.Conv2D(
-                input,
-                weights["generator/encoder_1/conv2d/kernel"],
-                weights["generator/encoder_1/conv2d/bias"]
-            ));
+            {
+                layers.Push(Math.Conv2D(
+                    input,
+                    weights["generator/encoder_1/conv2d/kernel"],
+                    weights["generator/encoder_1/conv2d/bias"]
+                ));
 
-            yield return _conv2DCosts[0];
+                yield return _encoderCosts[0];
+            }
 
             for (var i = 2; i <= 8; i++)
             {
@@ -39,7 +51,7 @@ namespace Pix2Pix
                 rect.Dispose();
                 conv.Dispose();
 
-                yield return _conv2DCosts[i - 1];
+                yield return _encoderCosts[i - 1];
             }
 
             var decoding = layers.Pop();
@@ -74,7 +86,7 @@ namespace Pix2Pix
 
                 decoding = norm;
 
-                yield return _deconv2DCosts[i - 1];
+                yield return _decoderCosts[i - 1];
             }
 
             {
@@ -93,7 +105,7 @@ namespace Pix2Pix
                 rect.Dispose();
                 conv.Dispose();
 
-                yield return _deconv2DCosts[0];
+                yield return _decoderCosts[0];
             }
         }
     }

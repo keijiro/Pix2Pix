@@ -1,4 +1,4 @@
-// Downsampling convolution and upsampling transposed convolution kernels
+// Encoder convolution and decoder transposed convolution kernels
 // https://github.com/keijiro/Pix2Pix
 
 #pragma enable_d3d11_debug_symbols
