@@ -185,6 +185,47 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &241764123
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 241764125}
+  - component: {fileID: 241764124}
+  m_Layer: 0
+  m_Name: GPU Backend
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &241764124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 241764123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f49bb80699f11b459a011814e7323bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _computeAssets: {fileID: 11400000, guid: cbf17580364e8ba4b8469bc5997bf7e9, type: 2}
+--- !u!4 &241764125
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 241764123}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 5
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &468987151
 GameObject:
   m_ObjectHideFlags: 0
@@ -429,9 +470,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1817016953}
   - component: {fileID: 1817016952}
-  - component: {fileID: 1817016954}
   m_Layer: 0
-  m_Name: SketchPad
+  m_Name: Sketch Pad
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -468,23 +508,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1817016954
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 1817016951}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c5c3cd9fc8699c6439ff3e034eb36526, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _setup: {fileID: 7200000, guid: c4ea4d50f9bcfea419bcdf8928fb6ff1, type: 3}
-  _image: {fileID: 7200000, guid: 1a110168d2a5bff49b19e6bd01201603, type: 3}
-  _activation: {fileID: 7200000, guid: 5bbbfdbe78b3e0647bbb269a10bc77bd, type: 3}
-  _concat: {fileID: 7200000, guid: 03ada4dc6c344be4a80d675dd931974f, type: 3}
-  _batchNorm: {fileID: 7200000, guid: 48ae6ab6cc385c342adb4f3dfc265baf, type: 3}
-  _convolution: {fileID: 7200000, guid: aa231cbf6358c2c49ad0514c4dd30701, type: 3}
 --- !u!1 &2095124818
 GameObject:
   m_ObjectHideFlags: 0

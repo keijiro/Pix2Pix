@@ -6,26 +6,44 @@ using System.Collections.Generic;
 
 namespace Pix2Pix
 {
-    static public class GpuBackend
+    sealed class GpuBackend : MonoBehaviour
     {
+        #region MonoBehaviour implementation as a singleton-like class
+
+        [SerializeField, HideInInspector] ComputeAssets _computeAssets;
+
+        static GpuBackend _instance;
+
+        void OnEnable()
+        {
+            _instance = this;
+        }
+
+        void OnDestroy()
+        {
+            ReleaseAllBuffers();
+        }
+
+        #endregion
+
         #region Compute buffer management
 
-        static List<ComputeBuffer> _buffers = new List<ComputeBuffer>();
+        List<ComputeBuffer> _buffers = new List<ComputeBuffer>();
 
         internal static ComputeBuffer AllocateBuffer(int size)
         {
             var buffer = new ComputeBuffer(size, sizeof(float));
-            _buffers.Add(buffer);
+            _instance._buffers.Add(buffer);
             return buffer;
         }
 
         internal static void ReleaseBuffer(ComputeBuffer buffer)
         {
-            _buffers.Remove(buffer);
+            _instance._buffers.Remove(buffer);
             buffer.Release();
         }
 
-        public static void ReleaseAllBuffers()
+        void ReleaseAllBuffers()
         {
             foreach (var buffer in _buffers) buffer.Release();
             _buffers.Clear();
@@ -41,9 +59,9 @@ namespace Pix2Pix
             Debug.Assert(input.Shape[1] == output.Shape[1]);
             Debug.Assert(input.Shape[2] == output.Shape[2]);
 
-            var compute = ComputeAssets.Activation;
+            var compute = _instance._computeAssets.Activation;
             var kernel = compute.FindKernel(name);
-            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+            var threadCount = compute.GetThreadGroupSizeVector(kernel);
 
             var length = input.Buffer.count;
             Debug.Assert(length % threadCount.x == 0);
@@ -68,9 +86,9 @@ namespace Pix2Pix
             Debug.Assert(output.Shape[1] == width);
             Debug.Assert(output.Shape[2] == channels * 2);
 
-            var compute = ComputeAssets.Concat;
+            var compute = _instance._computeAssets.Concat;
             var kernel = compute.FindKernel("Concat");
-            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+            var threadCount = compute.GetThreadGroupSizeVector(kernel);
 
             Debug.Assert(channels % threadCount.x == 0);
             Debug.Assert((width * height) % threadCount.y == 0);
@@ -95,9 +113,9 @@ namespace Pix2Pix
             Debug.Assert(channels == scale .Buffer.count);
             Debug.Assert(channels == offset.Buffer.count);
 
-            var compute = ComputeAssets.BatchNorm;
+            var compute = _instance._computeAssets.BatchNorm;
             var kernel = compute.FindKernel(nestable ? "BatchNormNested" : "BatchNorm");
-            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+            var threadCount = compute.GetThreadGroupSizeVector(kernel);
 
             Debug.Assert(channels % threadCount.x == 0);
 
@@ -144,9 +162,9 @@ namespace Pix2Pix
             var outChannels = filter.Shape[3];
             Debug.Assert(bias.Shape[0] == outChannels);
 
-            var compute = ComputeAssets.Convolution;
+            var compute = _instance._computeAssets.Convolution;
             var kernel = compute.FindKernel(kernelName);
-            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+            var threadCount = compute.GetThreadGroupSizeVector(kernel);
 
             Debug.Assert(outChannels % threadCount.x == 0 || outChannels == 3);
 
@@ -154,9 +172,9 @@ namespace Pix2Pix
             compute.SetInts("FilterShape", filter.Shape);
             compute.SetInts("OutputShape", output.Shape);
 
-            compute.SetInts( "InputIndexer", CalculateIndexer(input .Shape));
-            compute.SetInts("FilterIndexer", CalculateIndexer(filter.Shape));
-            compute.SetInts("OutputIndexer", CalculateIndexer(output.Shape));
+            compute.SetInts( "InputIndexer", GpuBackendHelper.Indexer(input .Shape));
+            compute.SetInts("FilterIndexer", GpuBackendHelper.Indexer(filter.Shape));
+            compute.SetInts("OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
 
             compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Filter", filter.Buffer);
@@ -169,7 +187,7 @@ namespace Pix2Pix
 
         internal static void InvokeReorderWeights(Tensor input, Tensor output)
         {
-            var compute = ComputeAssets.Setup;
+            var compute = _instance._computeAssets.Setup;
             var kernel = compute.FindKernel("ReorderWeights");
 
             Debug.Assert(input.Shape[0] == output.Shape[0]);
@@ -180,8 +198,8 @@ namespace Pix2Pix
             compute.SetInts("InputShape" , input .Shape);
             compute.SetInts("OutputShape", output.Shape);
 
-            compute.SetInts("InputIndexer" , CalculateIndexer(input .Shape));
-            compute.SetInts("OutputIndexer", CalculateIndexer(output.Shape));
+            compute.SetInts("InputIndexer" , GpuBackendHelper.Indexer(input .Shape));
+            compute.SetInts("OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
 
             compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
@@ -195,9 +213,9 @@ namespace Pix2Pix
             Debug.Assert(output.Shape[1] == input.width);
             Debug.Assert(output.Shape[2] == 3);
 
-            var compute = ComputeAssets.Image;
+            var compute = _instance._computeAssets.Image;
             var kernel = compute.FindKernel("ImageToTensor");
-            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+            var threadCount = compute.GetThreadGroupSizeVector(kernel);
 
             Debug.Assert(input.width  % threadCount.x == 0);
             Debug.Assert(input.height % threadCount.y == 0);
@@ -215,9 +233,9 @@ namespace Pix2Pix
             Debug.Assert(output.width  == input.Shape[1]);
             Debug.Assert(input.Shape[2] == 3);
 
-            var compute = ComputeAssets.Image;
+            var compute = _instance._computeAssets.Image;
             var kernel = compute.FindKernel("TensorToImage");
-            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+            var threadCount = compute.GetThreadGroupSizeVector(kernel);
 
             Debug.Assert(input.Shape[1] % threadCount.x == 0);
             Debug.Assert(input.Shape[0] % threadCount.y == 0);
@@ -231,10 +249,13 @@ namespace Pix2Pix
         }
 
         #endregion
+    }
 
-        #region Internal helpers
+    #region Internal helper
 
-        static Vector3Int GetKernelThreadGroupSizeVector(this ComputeShader self, int kernel)
+    static class GpuBackendHelper
+    {
+        internal static Vector3Int GetThreadGroupSizeVector(this ComputeShader self, int kernel)
         {
             uint tgs_x, tgs_y, tgs_z;
             self.GetKernelThreadGroupSizes(kernel, out tgs_x, out tgs_y, out tgs_z);
@@ -243,7 +264,7 @@ namespace Pix2Pix
 
         static int[] _tempIndexVector = new int[4];
 
-        static int[] CalculateIndexer(int[] shape)
+        internal static int[] Indexer(int[] shape)
         {
             if (shape.Length == 4)
             {
@@ -261,7 +282,7 @@ namespace Pix2Pix
             }
             return _tempIndexVector;
         }
-
-        #endregion
     }
+
+    #endregion
 }
