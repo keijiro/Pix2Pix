@@ -151,7 +151,7 @@ namespace Pix2Pix
         {
             if (_itr == null)
             {
-                ImageFilter.Preprocess(_sourceTexture, _sourceTensor);
+                Image.ConvertToTensor(_sourceTexture, _sourceTensor);
                 _itr = Generator.Apply(_sourceTensor, _weightTable, _resultTensor);
             }
 
@@ -159,10 +159,10 @@ namespace Pix2Pix
             {
                 if (!_itr.MoveNext())
                 {
-                    ImageFilter.Deprocess(_resultTensor, _resultTexture);
+                    Image.ConvertFromTensor(_resultTensor, _resultTexture);
                     _spent += _itr.Current;
 
-                    ImageFilter.Preprocess(_sourceTexture, _sourceTensor);
+                    Image.ConvertToTensor(_sourceTexture, _sourceTensor);
                     _itr = Generator.Apply(_sourceTensor, _weightTable, _resultTensor);
                 }
                 else

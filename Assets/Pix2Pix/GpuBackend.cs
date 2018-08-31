@@ -35,7 +35,7 @@ namespace Pix2Pix
 
         #region Compute kernel invocation methods
         
-        internal static void InvokeActivation(string name, Tensor input, Tensor output)
+        internal static void InvokeActivation(string name, Tensor input, float alpha, Tensor output)
         {
             Debug.Assert(input.Shape[0] == output.Shape[0]);
             Debug.Assert(input.Shape[1] == output.Shape[1]);
@@ -48,6 +48,7 @@ namespace Pix2Pix
             var length = input.Buffer.count;
             Debug.Assert(length % threadCount.x == 0);
 
+            compute.SetFloat("Alpha", alpha);
             compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
             compute.Dispatch(kernel, length / threadCount.x, 1, 1);
@@ -186,6 +187,47 @@ namespace Pix2Pix
             compute.SetBuffer(kernel, "Output", output.Buffer);
 
             compute.Dispatch(kernel, input.Shape[0], input.Shape[1], 1);
+        }
+
+        internal static void InvokeImageToTensor(Texture input, Tensor output)
+        {
+            Debug.Assert(output.Shape[0] == input.height);
+            Debug.Assert(output.Shape[1] == input.width);
+            Debug.Assert(output.Shape[2] == 3);
+
+            var compute = ComputeAssets.Image;
+            var kernel = compute.FindKernel("ImageToTensor");
+            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+
+            Debug.Assert(input.width  % threadCount.x == 0);
+            Debug.Assert(input.height % threadCount.y == 0);
+
+            compute.SetInts("Shape", output.Shape);
+            compute.SetTexture(kernel, "InputImage", input);
+            compute.SetBuffer(kernel, "OutputTensor", output.Buffer);
+
+            compute.Dispatch(kernel, input.width / threadCount.x, input.height / threadCount.y, 1);
+        }
+
+        internal static void InvokeTensorToImage(Tensor input, RenderTexture output)
+        {
+            Debug.Assert(output.height == input.Shape[0]);
+            Debug.Assert(output.width  == input.Shape[1]);
+            Debug.Assert(input.Shape[2] == 3);
+
+            var compute = ComputeAssets.Image;
+            var kernel = compute.FindKernel("TensorToImage");
+            var threadCount = compute.GetKernelThreadGroupSizeVector(kernel);
+
+            Debug.Assert(input.Shape[1] % threadCount.x == 0);
+            Debug.Assert(input.Shape[0] % threadCount.y == 0);
+            Debug.Assert(output.enableRandomWrite);
+
+            compute.SetInts("Shape", input.Shape);
+            compute.SetBuffer(kernel, "InputTensor", input.Buffer);
+            compute.SetTexture(kernel, "OutputImage", output);
+
+            compute.Dispatch(kernel, output.width / threadCount.x, output.height / threadCount.y, 1);
         }
 
         #endregion

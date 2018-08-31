@@ -9,7 +9,7 @@ namespace Pix2Pix
 
         public static void Relu(Tensor input, Tensor output)
         {
-            GpuBackend.InvokeActivation("Relu", input, output);
+            GpuBackend.InvokeActivation("Relu", input, 0, output);
         }
 
         public static Tensor Relu(Tensor input)
@@ -23,8 +23,7 @@ namespace Pix2Pix
 
         public static void LeakyRelu(Tensor input, float alpha, Tensor output)
         {
-            ComputeAssets.Activation.SetFloat("Alpha", alpha);
-            GpuBackend.InvokeActivation("LeakyRelu", input, output);
+            GpuBackend.InvokeActivation("LeakyRelu", input, alpha, output);
         }
 
         public static Tensor LeakyRelu(Tensor input, float alpha)
@@ -38,7 +37,7 @@ namespace Pix2Pix
 
         public static void Tanh(Tensor input, Tensor output)
         {
-            GpuBackend.InvokeActivation("Tanh", input, output);
+            GpuBackend.InvokeActivation("Tanh", input, 0, output);
         }
 
         public static Tensor Tanh(Tensor input)
