@@ -1,12 +1,15 @@
+// .pict weight file reader
+// https://github.com/keijiro/Pix2Pix
+
 using System;
-using System.IO;
-using System.Text;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace Pix2Pix
 {
-    static class WeightReader
+    public static class WeightReader
     {
         #region JSON deserialization
 
@@ -79,5 +82,17 @@ namespace Pix2Pix
         }
 
         #endregion
+    }
+
+    static class BinaryReaderExtension
+    {
+        public static int ReadBEInt(this BinaryReader reader)
+        {
+            var b1 = reader.ReadByte();
+            var b2 = reader.ReadByte();
+            var b3 = reader.ReadByte();
+            var b4 = reader.ReadByte();
+            return (b1 << 24) | (b2 << 16) | (b3 << 8) | b4;
+        }
     }
 }

@@ -1,22 +1,25 @@
+// GPU backend interface
+// https://github.com/keijiro/Pix2Pix
+
 using UnityEngine;
 using System.Collections.Generic;
 
 namespace Pix2Pix
 {
-    static class GpuHelper
+    static public class GpuHelper
     {
         #region Compute buffer management
 
         static List<ComputeBuffer> _buffers = new List<ComputeBuffer>();
 
-        public static ComputeBuffer AllocateBuffer(int size)
+        internal static ComputeBuffer AllocateBuffer(int size)
         {
             var buffer = new ComputeBuffer(size, sizeof(float));
             _buffers.Add(buffer);
             return buffer;
         }
 
-        public static void ReleaseBuffer(ComputeBuffer buffer)
+        internal static void ReleaseBuffer(ComputeBuffer buffer)
         {
             _buffers.Remove(buffer);
             buffer.Release();
@@ -32,7 +35,7 @@ namespace Pix2Pix
 
         #region Compute kernel invocation methods
         
-        public static void InvokeActivation(string name, Tensor input, Tensor output)
+        internal static void InvokeActivation(string name, Tensor input, Tensor output)
         {
             Debug.Assert(input.Shape[0] == output.Shape[0]);
             Debug.Assert(input.Shape[1] == output.Shape[1]);
@@ -50,7 +53,7 @@ namespace Pix2Pix
             compute.Dispatch(kernel, length / threadCount.x, 1, 1);
         }
 
-        public static void InvokeConcat(Tensor input1, Tensor input2, Tensor output)
+        internal static void InvokeConcat(Tensor input1, Tensor input2, Tensor output)
         {
             var height   = input1.Shape[0];
             var width    = input1.Shape[1];
@@ -78,7 +81,7 @@ namespace Pix2Pix
             compute.Dispatch(kernel, channels / threadCount.x, width * height / threadCount.y, 1);
         }
 
-        public static void InvokeBatchNorm(Tensor input, Tensor scale, Tensor offset, Tensor output)
+        internal static void InvokeBatchNorm(Tensor input, Tensor scale, Tensor offset, Tensor output)
         {
             Debug.Assert(input.Shape[0] == output.Shape[0]);
             Debug.Assert(input.Shape[1] == output.Shape[1]);
@@ -105,7 +108,7 @@ namespace Pix2Pix
             compute.Dispatch(kernel, channels / threadCount.x, 1, 1);
         }
 
-        public static void InvokeConv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
+        internal static void InvokeConv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
         {
             Debug.Assert(output.Shape[0] == input.Shape[0] / 2);
             Debug.Assert(output.Shape[1] == input.Shape[1] / 2);
@@ -117,7 +120,7 @@ namespace Pix2Pix
             InvokeConv2DInternal(kernelName, input, filter, bias, output);
         }
 
-        public static void InvokeDeconv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
+        internal static void InvokeDeconv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
         {
             Debug.Assert(output.Shape[0] == input.Shape[0] * 2);
             Debug.Assert(output.Shape[1] == input.Shape[1] * 2);
@@ -163,7 +166,7 @@ namespace Pix2Pix
             compute.Dispatch(kernel, groupCount, output.Shape[1], output.Shape[0]);
         }
 
-        public static void InvokeReorderWeights(Tensor input, Tensor output)
+        internal static void InvokeReorderWeights(Tensor input, Tensor output)
         {
             var compute = ComputeAssets.Setup;
             var kernel = compute.FindKernel("ReorderWeights");
