@@ -78,7 +78,7 @@ namespace Pix2Pix
 
         void OnDestroy()
         {
-            GpuHelper.ReleaseAllBuffers();
+            GpuBackend.ReleaseAllBuffers();
 
             Destroy(_sourceTexture);
             Destroy(_resultTexture);

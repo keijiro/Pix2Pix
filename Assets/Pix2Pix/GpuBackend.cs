@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Pix2Pix
 {
-    static public class GpuHelper
+    static public class GpuBackend
     {
         #region Compute buffer management
 

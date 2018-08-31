@@ -9,7 +9,7 @@ namespace Pix2Pix
 
         public static void Relu(Tensor input, Tensor output)
         {
-            GpuHelper.InvokeActivation("Relu", input, output);
+            GpuBackend.InvokeActivation("Relu", input, output);
         }
 
         public static Tensor Relu(Tensor input)
@@ -24,7 +24,7 @@ namespace Pix2Pix
         public static void LeakyRelu(Tensor input, float alpha, Tensor output)
         {
             ComputeAssets.Activation.SetFloat("Alpha", alpha);
-            GpuHelper.InvokeActivation("LeakyRelu", input, output);
+            GpuBackend.InvokeActivation("LeakyRelu", input, output);
         }
 
         public static Tensor LeakyRelu(Tensor input, float alpha)
@@ -38,7 +38,7 @@ namespace Pix2Pix
 
         public static void Tanh(Tensor input, Tensor output)
         {
-            GpuHelper.InvokeActivation("Tanh", input, output);
+            GpuBackend.InvokeActivation("Tanh", input, output);
         }
 
         public static Tensor Tanh(Tensor input)
@@ -52,7 +52,7 @@ namespace Pix2Pix
 
         public static void Concat(Tensor input1, Tensor input2, Tensor output)
         {
-            GpuHelper.InvokeConcat(input1, input2, output);
+            GpuBackend.InvokeConcat(input1, input2, output);
         }
 
         public static Tensor Concat(Tensor input1, Tensor input2)
@@ -70,13 +70,13 @@ namespace Pix2Pix
 
         public static void BatchNorm(Tensor input, Tensor scale, Tensor offset, Tensor output)
         {
-            GpuHelper.InvokeBatchNorm(input, scale, offset, output);
+            GpuBackend.InvokeBatchNorm(input, scale, offset, output);
         }
 
         public static Tensor BatchNorm(Tensor input, Tensor scale, Tensor offset)
         {
             var output = new Tensor(input.Shape);
-            GpuHelper.InvokeBatchNorm(input, scale, offset, output);
+            GpuBackend.InvokeBatchNorm(input, scale, offset, output);
             return output;
         }
 
@@ -84,7 +84,7 @@ namespace Pix2Pix
 
         public static void Conv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
         {
-            GpuHelper.InvokeConv2D(input, filter, bias, output);
+            GpuBackend.InvokeConv2D(input, filter, bias, output);
         }
 
         public static Tensor Conv2D(Tensor input, Tensor filter, Tensor bias)
@@ -102,7 +102,7 @@ namespace Pix2Pix
 
         public static void Deconv2D(Tensor input, Tensor filter, Tensor bias, Tensor output)
         {
-            GpuHelper.InvokeDeconv2D(input, filter, bias, output);
+            GpuBackend.InvokeDeconv2D(input, filter, bias, output);
         }
 
         public static Tensor Deconv2D(Tensor input, Tensor filter, Tensor bias)

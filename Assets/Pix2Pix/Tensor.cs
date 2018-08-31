@@ -21,7 +21,7 @@ namespace Pix2Pix
             Shape = shape;
 
             var total = shape.Aggregate(1, (acc, x) => acc * x);
-            Buffer = GpuHelper.AllocateBuffer(total);
+            Buffer = GpuBackend.AllocateBuffer(total);
 
             if (data != null)
             {
@@ -59,7 +59,7 @@ namespace Pix2Pix
 
                 if (Buffer != null)
                 {
-                    GpuHelper.ReleaseBuffer(Buffer);
+                    GpuBackend.ReleaseBuffer(Buffer);
                     Buffer = null;
                 }
             }
