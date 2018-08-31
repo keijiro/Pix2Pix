@@ -176,27 +176,24 @@ namespace Pix2Pix
             return output;
         }
 
-        public static Tensor SwapFilter(Tensor filter)
+        public static Tensor ReorderWeights(Tensor input)
         {
-            var compute = ComputeAssets.Convolution;
-            var kernel = compute.FindKernel("SwapFilter");
+            var compute = ComputeAssets.Setup;
+            var kernel = compute.FindKernel("ReorderWeights");
 
             uint tgn_x, tgn_y, tgn_z;
             compute.GetKernelThreadGroupSizes(kernel, out tgn_x, out tgn_y, out tgn_z);
 
-            var shape = filter.Shape;
-            Debug.Assert(shape[0] % tgn_x == 0);
-            Debug.Assert(shape[1] % tgn_y == 0);
-            Debug.Assert(tgn_z == 1);
-
+            var shape = input.Shape;
             var output = new Tensor(new [] {shape[0], shape[1], shape[3], shape[2]});
 
-            compute.SetInts("FilterShape", filter.Shape);
-            compute.SetInts("FilterIndexer", CalculateIndexVector(filter.Shape));
+            compute.SetInts("InputShape", input.Shape);
+            compute.SetInts("OutputShape", output.Shape);
+            compute.SetInts("InputIndexer", CalculateIndexVector(input.Shape));
+            compute.SetInts("OutputIndexer", CalculateIndexVector(output.Shape));
 
-            compute.SetBuffer(kernel, "Filter", filter.Buffer);
+            compute.SetBuffer(kernel, "Input", input.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
-
             compute.Dispatch(kernel, shape[0] / (int)tgn_x, shape[1] / (int)tgn_y, 1);
 
             return output;

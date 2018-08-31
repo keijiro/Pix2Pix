@@ -3,8 +3,6 @@
 
 #pragma enable_d3d11_debug_symbols
 
-#pragma kernel SwapFilter CACHESIZE=1
-
 #pragma kernel Conv2D_64 CACHESIZE=64
 #pragma kernel Conv2D_128 CACHESIZE=128
 #pragma kernel Conv2D_256 CACHESIZE=256
@@ -46,19 +44,6 @@ float GetFilter(uint4 i)
 uint OutputIndex(uint3 i)
 {
     return dot(i, OutputIndexer);
-}
-
-[numthreads(4, 4, 1)]
-void SwapFilter(uint2 tid : SV_DispatchThreadID)
-{
-    for (uint o = 0; o < FilterShape.z; o++)
-    {
-        for (uint i = 0; i < FilterShape.w; i++)
-        {
-            uint idx = ((tid.x * FilterShape.y + tid.y) * FilterShape.w + i) * FilterShape.z + o;
-            Output[idx] = Filter[dot(FilterIndexer, uint4(tid.xy, o, i))];
-        }
-    }
 }
 
 [numthreads(64, 1, 1)] void Conv2D_64

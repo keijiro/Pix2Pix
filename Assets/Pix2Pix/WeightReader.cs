@@ -60,7 +60,7 @@ namespace Pix2Pix
                 if (info.name.Contains("conv2d_transpose/kernel"))
                 {
                     var t = table[info.name];
-                    table[info.name] = GpuHelper.SwapFilter(t);
+                    table[info.name] = GpuHelper.ReorderWeights(t);
                     t.Dispose();
                 }
             }

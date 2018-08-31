@@ -1,0 +1,28 @@
+// Kernels used for preparation
+// https://github.com/keijiro/Pix2Pix
+
+#pragma enable_d3d11_debug_symbols
+
+#pragma kernel ReorderWeights
+
+Buffer<float> Input;
+RWBuffer<float> Output;
+
+uint4 InputShape;
+uint4 OutputShape;
+uint4 InputIndexer;
+uint4 OutputIndexer;
+
+[numthreads(4, 4, 1)]
+void ReorderWeights(uint2 tid : SV_DispatchThreadID)
+{
+    for (uint o = 0; o < InputShape.z; o++)
+    {
+        for (uint i = 0; i < InputShape.w; i++)
+        {
+            uint offs_i = dot( InputIndexer, uint4(tid.xy, o, i));
+            uint offs_o = dot(OutputIndexer, uint4(tid.xy, i, o));
+            Output[offs_o] = Input[offs_i];
+        }
+    }
+}
