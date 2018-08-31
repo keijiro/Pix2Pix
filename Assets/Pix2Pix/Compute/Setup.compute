@@ -1,9 +1,14 @@
-// Kernels used for preparation
+// Kernels for preparation
 // https://github.com/keijiro/Pix2Pix
 
 #pragma enable_d3d11_debug_symbols
 
-#pragma kernel ReorderWeights
+// The ReorderWeights kernel is used to reorder tensors from [x y z w] order
+// to [x y w z] order. This is needed to accelerate the transposed convolution
+// layers with enabling coalesced memory access (huge performance boost on
+// NVIDIA GPUs). Also the kernel itself is optimized with memory coalescing.
+
+#pragma kernel ReorderWeights THREADS=64
 
 Buffer<float> Input;
 RWBuffer<float> Output;
@@ -13,16 +18,36 @@ uint4 OutputShape;
 uint4 InputIndexer;
 uint4 OutputIndexer;
 
-[numthreads(4, 4, 1)]
-void ReorderWeights(uint2 tid : SV_DispatchThreadID)
+groupshared float cache[THREADS][THREADS];
+
+[numthreads(THREADS, 1, 1)]
+void ReorderWeights(uint2 group_id : SV_GroupID, uint thread_id : SV_GroupThreadID)
 {
-    for (uint o = 0; o < InputShape.z; o++)
+    const uint2 x_y = group_id.xy;
+
+    for (uint z_base = 0; z_base < InputShape.z; z_base += THREADS)
     {
-        for (uint i = 0; i < InputShape.w; i++)
+        for (uint w_base = 0; w_base < InputShape.w; w_base += THREADS)
         {
-            uint offs_i = dot( InputIndexer, uint4(tid.xy, o, i));
-            uint offs_o = dot(OutputIndexer, uint4(tid.xy, i, o));
-            Output[offs_o] = Input[offs_i];
+            uint z, w;
+
+            // Load a THREADS x THREADS block of the input tensor into the
+            // cache in a coalesced memory access pattern.
+            w = w_base + thread_id;
+            if (w < InputShape.w)
+                for (z = z_base; z < min(z_base + THREADS, InputShape.z); z++)
+                    cache[z - z_base][thread_id] = Input[dot(InputIndexer, uint4(x_y, z, w))];
+
+            GroupMemoryBarrierWithGroupSync();
+
+            // Transpose and store the contents of the cache into the output
+            // tensor in a coalesced memory access pattern.
+            z = z_base + thread_id;
+            if (z < InputShape.z)
+                for (w = w_base; w < min(w_base + THREADS, InputShape.w); w++)
+                    Output[dot(OutputIndexer, uint4(x_y, w, z))] = cache[thread_id][w - w_base];
+
+            GroupMemoryBarrierWithGroupSync();
         }
     }
 }
