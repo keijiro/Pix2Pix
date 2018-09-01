@@ -50,7 +50,10 @@ public class SketchPad : MonoBehaviour
         p0 = Vector3.Scale(p0, scale);
         p1 = Vector3.Scale(p1, scale);
 
-        DrawSegment(p0, p1, data.button == PointerEventData.InputButton.Right);
+        var eraser = (data.button == PointerEventData.InputButton.Right);
+        eraser |= Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        DrawSegment(p0, p1, eraser);
     }
 
     void DrawSegment(Vector3 p0, Vector3 p1, bool isEraser)
@@ -213,6 +216,9 @@ public class SketchPad : MonoBehaviour
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.C))
+            Graphics.Blit(_defaultTexture, _sourceTexture);
+
         UpdatePix2Pix();
     }
 
