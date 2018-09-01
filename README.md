@@ -11,9 +11,8 @@ network frameworks.
 Sketch Pad Demo
 ---------------
 
-![screenshot](https://i.imgur.com/7Dfqrxt.gif)
-
-![screenshot](https://i.imgur.com/TrRXDlZ.gif)
+![screenshot](https://i.imgur.com/aXYYjes.gif)
+![screenshot](https://i.imgur.com/Tb0nYqU.gif)
 
 **Sketch Pad** is a demonstration that resembles the famous [edges2cats] demo
 but in real time. You can download a pre-built binary from the [Releases] page.
