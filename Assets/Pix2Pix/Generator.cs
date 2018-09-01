@@ -14,8 +14,8 @@ namespace Pix2Pix
     public static class Generator
     {
         // Heuristic costs of each layer (total = 1,000)
-        static readonly int[] _encoderCosts = { 14, 74, 74, 74, 40, 10, 6, 6 };
-        static readonly int[] _decoderCosts = { 150, 150, 150, 150, 74, 20, 6, 2 };
+        static readonly int[] _encoderCosts = { 15, 74, 74, 74, 40, 10, 6, 6 };
+        static readonly int[] _decoderCosts = { 150, 150, 150, 150, 75, 20, 6, 0 };
 
         // Start the coroutine-like enumerator.
         public static IEnumerator<int> Start

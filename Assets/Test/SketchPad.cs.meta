@@ -4,10 +4,12 @@ MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - _sourceRenderer: {instanceID: 0}
-  - _resultRenderer: {instanceID: 0}
   - _defaultTexture: {instanceID: 0}
-  - _shader: {fileID: 4800000, guid: 4bff63f1a4f22844c8df92b9e3765587, type: 3}
+  - _sourceUI: {instanceID: 0}
+  - _resultUI: {instanceID: 0}
+  - _textUI: {instanceID: 0}
+  - _drawArea: {instanceID: 0}
+  - _drawShader: {fileID: 4800000, guid: 4bff63f1a4f22844c8df92b9e3765587, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

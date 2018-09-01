@@ -12,7 +12,7 @@ Texture2D<float3> InputImage;
 RWBuffer<float> OutputTensor;
 
 Buffer<float> InputTensor;
-RWTexture2D<float3> OutputImage;
+RWTexture2D<float4> OutputImage;
 
 [numthreads(16, 16, 1)]
 void ImageToTensor(uint2 id : SV_DispatchThreadID)
@@ -35,5 +35,5 @@ void TensorToImage(uint2 id : SV_DispatchThreadID)
     float g = InputTensor[i++];
     float b = InputTensor[i  ];
 
-    OutputImage[id] = (float3(r, g, b) + 1) / 2;
+    OutputImage[id] = (float4(r, g, b, 1) + 1) / 2;
 }

@@ -1,182 +1,220 @@
+// Pix2Pix sketch pad demo
+// https://github.com/keijiro/Pix2Pix
+
 using UnityEngine;
-using UnityEngine.UI;
-using System.IO;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
+using UI = UnityEngine.UI;
 
-namespace Pix2Pix
+public class SketchPad : MonoBehaviour
 {
-    public class SketchPad : MonoBehaviour
+    #region Editable attributes
+
+    [SerializeField] string _weightFileName;
+    [SerializeField] Texture _defaultTexture;
+
+    [SerializeField] UI.RawImage _sourceUI;
+    [SerializeField] UI.RawImage _resultUI;
+    [SerializeField] UI.Text _textUI;
+
+    [SerializeField, HideInInspector] Shader _drawShader;
+
+    #endregion
+
+    #region Internal objects
+
+    RenderTexture _sourceTexture;
+    RenderTexture _resultTexture;
+
+    Material _lineMaterial;
+    Material _eraserMaterial;
+
+    List<Vector3> _vertexList = new List<Vector3>(4);
+    Mesh _lineMesh;
+    Mesh _eraserMesh;
+
+    #endregion
+
+    #region Drawing UI implementation
+
+    public void OnDrag(BaseEventData baseData)
     {
-        [SerializeField] string _weightFileName;
-        [SerializeField] Renderer _sourceRenderer;
-        [SerializeField] Renderer _resultRenderer;
-        [SerializeField] Vector4 _drawArea;
-        [SerializeField] Texture _defaultTexture;
-        [SerializeField] Text _textDisplay;
+        var data = (PointerEventData)baseData;
+        data.Use();
 
-        [SerializeField, HideInInspector] Shader _shader;
+        var area = data.pointerDrag.GetComponent<RectTransform>();
+        var p0 = area.InverseTransformPoint(data.position - data.delta);
+        var p1 = area.InverseTransformPoint(data.position);
 
-        RenderTexture _sourceTexture;
-        RenderTexture _resultTexture;
+        var scale = new Vector3(2 / area.rect.width, -2 / area.rect.height, 0);
+        p0 = Vector3.Scale(p0, scale);
+        p1 = Vector3.Scale(p1, scale);
 
-        Material _lineMaterial;
-        Mesh _lineMesh;
-
-        Material _eraserMaterial;
-        Mesh _eraserMesh;
-
-        List<Vector3> _vertexList = new List<Vector3>(4);
-        Vector3 _mouseHistory;
-
-        Dictionary<string, Tensor> _weightTable;
-        Tensor _sourceTensor;
-        Tensor _resultTensor;
-
-        Vector3 TransformMousePosition(Vector3 p)
-        {
-            var x = (p.x / Screen.width  - _drawArea.x) / (_drawArea.z - _drawArea.x);
-            var y = (p.y / Screen.height - _drawArea.y) / (_drawArea.w - _drawArea.y);
-            return new Vector3(x * 2 - 1, 1 - y * 2, 0);
-        }
-
-        void Start()
-        {
-            _sourceTexture = new RenderTexture(256, 256, 0);
-            _resultTexture = new RenderTexture(256, 256, 0);
-
-            _sourceTexture.filterMode = FilterMode.Point;
-            _resultTexture.enableRandomWrite = true;
-
-            _sourceTexture.Create();
-            _resultTexture.Create();
-
-            Graphics.Blit(_defaultTexture, _sourceTexture);
-
-            _sourceRenderer.material.mainTexture = _sourceTexture;
-            _resultRenderer.material.mainTexture = _resultTexture;
-
-            _lineMaterial = new Material(_shader);
-            _lineMaterial.color = Color.black;
-
-            _lineMesh = new Mesh();
-            _lineMesh.MarkDynamic();
-            _lineMesh.vertices = new Vector3[2];
-            _lineMesh.SetIndices(new[]{0, 1}, MeshTopology.Lines, 0);
-
-            _eraserMaterial = new Material(_shader);
-            _eraserMaterial.color = Color.white;
-
-            _eraserMesh = new Mesh();
-            _eraserMesh.MarkDynamic();
-            _eraserMesh.vertices = new Vector3[4];
-            _eraserMesh.SetIndices(new[]{0, 1, 2, 1, 3, 2}, MeshTopology.Triangles, 0);
-
-            _weightTable = WeightReader.ReadFromFile(Path.Combine(Application.streamingAssetsPath, _weightFileName));
-            _sourceTensor = new Tensor(new[]{256, 256, 3});
-            _resultTensor = new Tensor(new[]{256, 256, 3});
-        }
-
-        void OnDestroy()
-        {
-            Destroy(_sourceTexture);
-            Destroy(_resultTexture);
-
-            Destroy(_lineMaterial);
-            Destroy(_lineMesh);
-
-            Destroy(_eraserMaterial);
-            Destroy(_eraserMesh);
-
-            WeightReader.DisposeTable(_weightTable);
-            _sourceTensor.Dispose();
-            _resultTensor.Dispose();
-        }
-
-        void Update()
-        {
-            UpdateSketch();
-            UpdatePix2Pix();
-        }
-
-        void UpdateSketch()
-        {
-            var mousePosition = Input.mousePosition;
-
-            var prevRT = RenderTexture.active;
-            RenderTexture.active = _sourceTexture;
-
-            if (Input.GetMouseButton(0))
-            {
-                if (Input.GetMouseButtonDown(0)) _mouseHistory = mousePosition;
-
-                _vertexList.Clear();
-                _vertexList.Add(TransformMousePosition(_mouseHistory));
-                _vertexList.Add(TransformMousePosition(mousePosition));
-                _lineMesh.SetVertices(_vertexList);
-
-                _lineMaterial.SetPass(0);
-                Graphics.DrawMeshNow(_lineMesh, Matrix4x4.identity);
-            }
-            else if (Input.GetMouseButton(1))
-            {
-                var p = TransformMousePosition(mousePosition);
-                var d = 0.05f;
-
-                _vertexList.Clear();
-                _vertexList.Add(p + new Vector3(-d, -d, 0));
-                _vertexList.Add(p + new Vector3(+d, -d, 0));
-                _vertexList.Add(p + new Vector3(-d, +d, 0));
-                _vertexList.Add(p + new Vector3(+d, +d, 0));
-                _eraserMesh.SetVertices(_vertexList);
-
-                _eraserMaterial.SetPass(0);
-                Graphics.DrawMeshNow(_eraserMesh, Matrix4x4.identity);
-            }
-
-            RenderTexture.active = prevRT;
-            _mouseHistory = mousePosition;
-        }
-
-        float _budget = 1200;
-        float _spent;
-        IEnumerator<int> _itr;
-
-        readonly string [] _levels = {
-            "N/A", "Poor", "Moderate", "Good", "Great", "Excellent"
-        };
-
-        void UpdatePix2Pix()
-        {
-            if (_itr == null)
-            {
-                Image.ConvertToTensor(_sourceTexture, _sourceTensor);
-                _itr = Generator.Start(_sourceTensor, _weightTable, _resultTensor);
-            }
-
-            while (_spent < _budget)
-            {
-                if (!_itr.MoveNext())
-                {
-                    Image.ConvertFromTensor(_resultTensor, _resultTexture);
-                    _spent += _itr.Current;
-
-                    Image.ConvertToTensor(_sourceTexture, _sourceTensor);
-                    _itr = Generator.Start(_sourceTensor, _weightTable, _resultTensor);
-                }
-                else
-                {
-                    _spent += _itr.Current;
-                }
-            }
-
-            _spent -= _budget;
-
-            _budget -= Mathf.Max(Time.deltaTime * 60 - 1.2f, 0) * 5;
-            _budget = Mathf.Max(150, _budget);
-
-            _textDisplay.text = "Refresh rate: " +
-                (60 * Mathf.Min(1.0f, _budget / 1000)).ToString("0.0") +
-                " Hz (" + _levels[(int)Mathf.Min(5, _budget / 100)] + ")";
-        }
+        DrawSegment(p0, p1, data.button == PointerEventData.InputButton.Right);
     }
+
+    void DrawSegment(Vector3 p0, Vector3 p1, bool isEraser)
+    {
+        var prevRT = RenderTexture.active;
+        RenderTexture.active = _sourceTexture;
+
+        if (!isEraser)
+        {
+            _vertexList.Clear();
+            _vertexList.Add(p0);
+            _vertexList.Add(p1);
+            _lineMesh.SetVertices(_vertexList);
+
+            _lineMaterial.SetPass(0);
+            Graphics.DrawMeshNow(_lineMesh, Matrix4x4.identity);
+        }
+        else
+        {
+            const float d = 0.05f;
+
+            _vertexList.Clear();
+            _vertexList.Add(p0 + new Vector3(-d, -d, 0));
+            _vertexList.Add(p0 + new Vector3(+d, -d, 0));
+            _vertexList.Add(p0 + new Vector3(-d, +d, 0));
+            _vertexList.Add(p0 + new Vector3(+d, +d, 0));
+            _eraserMesh.SetVertices(_vertexList);
+
+            _eraserMaterial.SetPass(0);
+            Graphics.DrawMeshNow(_eraserMesh, Matrix4x4.identity);
+        }
+
+        RenderTexture.active = prevRT;
+    }
+
+    #endregion
+
+    #region Pix2Pix implementation
+
+    Dictionary<string, Pix2Pix.Tensor> _weightTable;
+
+    Pix2Pix.Tensor _sourceTensor;
+    Pix2Pix.Tensor _resultTensor;
+
+    IEnumerator<int> _progress;
+    float _budget = 100;
+    float _budgetAdjust = 10;
+
+    readonly string [] _performanceLabels = {
+        "N/A", "Poor", "Moderate", "Good", "Great", "Excellent"
+    };
+
+    void InitializePix2Pix()
+    {
+        var filePath = System.IO.Path.Combine(Application.streamingAssetsPath, _weightFileName);
+        _weightTable = Pix2Pix.WeightReader.ReadFromFile(filePath);
+        _sourceTensor = new Pix2Pix.Tensor(new[]{256, 256, 3});
+        _resultTensor = new Pix2Pix.Tensor(new[]{256, 256, 3});
+    }
+
+    void FinalizePix2Pix()
+    {
+        Pix2Pix.WeightReader.DisposeTable(_weightTable);
+        _sourceTensor.Dispose();
+        _resultTensor.Dispose();
+    }
+
+    void UpdatePix2Pix()
+    {
+        // Advance the Pix2Pix inference until the current budget runs out.
+        for (var cost = 0.0f; cost < _budget;)
+        {
+            if (_progress == null)
+            {
+                Pix2Pix.Image.ConvertToTensor(_sourceTexture, _sourceTensor);
+                _progress = Pix2Pix.Generator.Start(_sourceTensor, _weightTable, _resultTensor);
+            }
+
+            if (_progress.MoveNext())
+            {
+                cost += _progress.Current;
+            }
+            else
+            {
+                Pix2Pix.Image.ConvertFromTensor(_resultTensor, _resultTexture);
+                _progress = null;
+            }
+        }
+
+        // Review the budget depending on the current frame time.
+        _budget -= (Time.deltaTime * 60 - 1.25f) * _budgetAdjust;
+        _budget = Mathf.Clamp(_budget, 150, 1200);
+
+        _budgetAdjust = Mathf.Max(_budgetAdjust - 0.05f, 0.5f);
+
+        // Update the text display.
+        var perf = (_budgetAdjust < 1) ?
+            _performanceLabels[(int)Mathf.Min(5, _budget / 100)] :
+            "Measuring GPU performance...";
+
+        _textUI.text = "Pix2Pix refresh rate: " +
+            (60 * _budget / 1000).ToString("0.0") + " Hz (" + perf + ")";
+    }
+
+    #endregion
+
+    #region MonoBehaviour implementation
+
+    void Start()
+    {
+        // Texture/image initialization
+        _sourceTexture = new RenderTexture(256, 256, 0);
+        _resultTexture = new RenderTexture(256, 256, 0);
+
+        _sourceTexture.filterMode = FilterMode.Point;
+        _resultTexture.enableRandomWrite = true;
+
+        _sourceTexture.Create();
+        _resultTexture.Create();
+
+        Graphics.Blit(_defaultTexture, _sourceTexture);
+
+        _sourceUI.texture = _sourceTexture;
+        _resultUI.texture = _resultTexture;
+
+        // Draw object initialization
+        _lineMaterial = new Material(_drawShader);
+        _eraserMaterial = new Material(_drawShader);
+
+        _lineMaterial.color = Color.black;
+        _eraserMaterial.color = Color.white;
+
+        _lineMesh = new Mesh();
+        _lineMesh.MarkDynamic();
+        _lineMesh.vertices = new Vector3[2];
+        _lineMesh.SetIndices(new[]{0, 1}, MeshTopology.Lines, 0);
+
+        _eraserMesh = new Mesh();
+        _eraserMesh.MarkDynamic();
+        _eraserMesh.vertices = new Vector3[4];
+        _eraserMesh.SetIndices(new[]{0, 1, 2, 1, 3, 2}, MeshTopology.Triangles, 0);
+
+        // Pix2Pix initialization
+        InitializePix2Pix();
+    }
+
+    void OnDestroy()
+    {
+        Destroy(_sourceTexture);
+        Destroy(_resultTexture);
+
+        Destroy(_lineMaterial);
+        Destroy(_eraserMaterial);
+
+        Destroy(_lineMesh);
+        Destroy(_eraserMesh);
+
+        FinalizePix2Pix();
+    }
+
+    void Update()
+    {
+        UpdatePix2Pix();
+    }
+
+    #endregion
 }
