@@ -14,7 +14,7 @@ namespace Pix2Pix
 
         public static Tensor ConvertToTensor(Texture source)
         {
-            var tensor = new Tensor(new [] {source.height, source.width, 3});
+            var tensor = new Tensor(new Shape(source.height, source.width, 3));
             ConvertToTensor(source, tensor);
             return tensor;
         }

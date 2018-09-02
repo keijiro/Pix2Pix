@@ -56,11 +56,11 @@ namespace Pix2Pix
 
         public static Tensor Concat(Tensor input1, Tensor input2)
         {
-            var output = new Tensor(new[]{
+            var output = new Tensor(new Shape(
                 input1.Shape[0],
                 input1.Shape[1],
                 input1.Shape[2] * 2
-            });
+            ));
             Concat(input1, input2, output);
             return output;
         }
@@ -88,11 +88,11 @@ namespace Pix2Pix
 
         public static Tensor Conv2D(Tensor input, Tensor filter, Tensor bias)
         {
-            var output = new Tensor(new[]{
+            var output = new Tensor(new Shape(
                 input.Shape[0] / 2,
                 input.Shape[1] / 2,
                 filter.Shape[3]
-            });
+            ));
             Conv2D(input, filter, bias, output);
             return output;
         }
@@ -106,11 +106,11 @@ namespace Pix2Pix
 
         public static Tensor Deconv2D(Tensor input, Tensor filter, Tensor bias)
         {
-            var output = new Tensor(new[]{
+            var output = new Tensor(new Shape(
                 input.Shape[0] * 2,
                 input.Shape[1] * 2,
                 filter.Shape[3]
-            });
+            ));
             Deconv2D(input, filter, bias, output);
             return output;
         }

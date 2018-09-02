@@ -110,8 +110,8 @@ public class SketchPad : MonoBehaviour
     {
         var filePath = System.IO.Path.Combine(Application.streamingAssetsPath, _weightFileName);
         _weightTable = Pix2Pix.WeightReader.ReadFromFile(filePath);
-        _sourceTensor = new Pix2Pix.Tensor(new[]{256, 256, 3});
-        _resultTensor = new Pix2Pix.Tensor(new[]{256, 256, 3});
+        _sourceTensor = new Pix2Pix.Tensor(new Pix2Pix.Shape(256, 256, 3));
+        _resultTensor = new Pix2Pix.Tensor(new Pix2Pix.Shape(256, 256, 3));
     }
 
     void FinalizePix2Pix()

@@ -58,13 +58,13 @@ namespace Pix2Pix
                 var data = new float[length];
                 for (var j = 0; j < length; j++) data[j] = values[reader.ReadByte()];
 
-                var tensor = new Tensor(info.shape, data);
+                var tensor = new Tensor(new Shape(info.shape), data);
 
                 if (info.name.Contains("conv2d_transpose/kernel"))
                 {
-                    var temp = new Tensor(new[]{
+                    var temp = new Tensor(new Shape(
                         info.shape[0], info.shape[1], info.shape[3], info.shape[2]
-                    });
+                    ));
                     GpuBackend.InvokeReorderWeights(tensor, temp);
                     tensor.Dispose();
                     tensor = temp;

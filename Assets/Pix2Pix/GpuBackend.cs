@@ -96,7 +96,7 @@ namespace Pix2Pix
             Debug.Assert(channels % threadCount.x == 0);
             Debug.Assert((width * height) % threadCount.y == 0);
 
-            compute.SetInts("InputShape", input1.Shape);
+            compute.SetShapeAsInts("InputShape", input1.Shape);
             compute.SetBuffer(kernel, "Input1", input1.Buffer);
             compute.SetBuffer(kernel, "Input2", input2.Buffer);
             compute.SetBuffer(kernel, "Output", output.Buffer);
@@ -129,7 +129,7 @@ namespace Pix2Pix
 
             Debug.Assert(channels % threadCount.x == 0);
 
-            compute.SetInts("InputShape", input.Shape);
+            compute.SetShapeAsInts("InputShape", input.Shape);
             compute.SetBuffer(kernel, "Input" , input .Buffer);
             compute.SetBuffer(kernel, "Scale" , scale .Buffer);
             compute.SetBuffer(kernel, "Offset", offset.Buffer);
@@ -181,9 +181,9 @@ namespace Pix2Pix
 
             Debug.Assert(outChannels % threadCount.x == 0 || outChannels == 3);
 
-            compute.SetInts( "InputShape", input .Shape);
-            compute.SetInts("FilterShape", filter.Shape);
-            compute.SetInts("OutputShape", output.Shape);
+            compute.SetShapeAsInts( "InputShape", input .Shape);
+            compute.SetShapeAsInts("FilterShape", filter.Shape);
+            compute.SetShapeAsInts("OutputShape", output.Shape);
 
             compute.SetInts( "InputIndexer", GpuBackendHelper.Indexer(input .Shape));
             compute.SetInts("FilterIndexer", GpuBackendHelper.Indexer(filter.Shape));
@@ -208,8 +208,8 @@ namespace Pix2Pix
             Debug.Assert(input.Shape[2] == output.Shape[3]);
             Debug.Assert(input.Shape[3] == output.Shape[2]);
 
-            compute.SetInts("InputShape" , input .Shape);
-            compute.SetInts("OutputShape", output.Shape);
+            compute.SetShapeAsInts("InputShape" , input .Shape);
+            compute.SetShapeAsInts("OutputShape", output.Shape);
 
             compute.SetInts("InputIndexer" , GpuBackendHelper.Indexer(input .Shape));
             compute.SetInts("OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
@@ -233,7 +233,7 @@ namespace Pix2Pix
             Debug.Assert(input.width  % threadCount.x == 0);
             Debug.Assert(input.height % threadCount.y == 0);
 
-            compute.SetInts("Shape", output.Shape);
+            compute.SetShapeAsInts("Shape", output.Shape);
             compute.SetTexture(kernel, "InputImage", input);
             compute.SetBuffer(kernel, "OutputTensor", output.Buffer);
 
@@ -259,7 +259,7 @@ namespace Pix2Pix
             Debug.Assert(input.Shape[0] % threadCount.y == 0);
             Debug.Assert(output.enableRandomWrite);
 
-            compute.SetInts("Shape", input.Shape);
+            compute.SetShapeAsInts("Shape", input.Shape);
             compute.SetBuffer(kernel, "InputTensor", input.Buffer);
             compute.SetTexture(kernel, "OutputImage", output);
 
@@ -286,25 +286,35 @@ namespace Pix2Pix
             return new Vector3Int((int)tgs_x, (int)tgs_y, (int)tgs_z);
         }
 
-        static int[] _tempIndexVector = new int[4];
+        static int[] _tempArray = new int[4];
 
-        internal static int[] Indexer(int[] shape)
+        public static void SetShapeAsInts
+            (this ComputeShader shader, string name, Shape shape)
         {
-            if (shape.Length == 4)
+            _tempArray[0] = shape.Dim1;
+            _tempArray[1] = shape.Dim2;
+            _tempArray[2] = shape.Dim3;
+            _tempArray[3] = shape.Dim4;
+            shader.SetInts(name, _tempArray);
+        }
+
+        internal static int[] Indexer(Shape shape)
+        {
+            if (shape.Order == 4)
             {
-                _tempIndexVector[0] = shape[1] * shape[2] * shape[3];
-                _tempIndexVector[1] = shape[2] * shape[3];
-                _tempIndexVector[2] = shape[3];
-                _tempIndexVector[3] = 1;
+                _tempArray[0] = shape[1] * shape[2] * shape[3];
+                _tempArray[1] = shape[2] * shape[3];
+                _tempArray[2] = shape[3];
+                _tempArray[3] = 1;
             }
             else
             {
-                _tempIndexVector[0] = shape[1] * shape[2];
-                _tempIndexVector[1] = shape[2];
-                _tempIndexVector[2] = 1;
-                _tempIndexVector[3] = 0;
+                _tempArray[0] = shape[1] * shape[2];
+                _tempArray[1] = shape[2];
+                _tempArray[2] = 1;
+                _tempArray[3] = 0;
             }
-            return _tempIndexVector;
+            return _tempArray;
         }
     }
 
