@@ -93,12 +93,13 @@ public class SketchPad : MonoBehaviour
 
     #region Pix2Pix implementation
 
-    Dictionary<string, Pix2Pix.Tensor> _weightTable;
-
     Pix2Pix.Tensor _sourceTensor;
     Pix2Pix.Tensor _resultTensor;
 
+    Dictionary<string, Pix2Pix.Tensor> _weightTable;
+    Pix2Pix.Generator _generator;
     IEnumerator<int> _progress;
+
     float _budget = 100;
     float _budgetAdjust = 10;
 
@@ -108,15 +109,19 @@ public class SketchPad : MonoBehaviour
 
     void InitializePix2Pix()
     {
-        var filePath = System.IO.Path.Combine(Application.streamingAssetsPath, _weightFileName);
-        _weightTable = Pix2Pix.WeightReader.ReadFromFile(filePath);
         _sourceTensor = new Pix2Pix.Tensor(new Pix2Pix.Shape(256, 256, 3));
         _resultTensor = new Pix2Pix.Tensor(new Pix2Pix.Shape(256, 256, 3));
+
+        var filePath = System.IO.Path.Combine(Application.streamingAssetsPath, _weightFileName);
+        _weightTable = Pix2Pix.WeightReader.ReadFromFile(filePath);
+        _generator = new Pix2Pix.Generator(_weightTable);
     }
 
     void FinalizePix2Pix()
     {
+        _generator.Dispose();
         Pix2Pix.WeightReader.DisposeTable(_weightTable);
+
         _sourceTensor.Dispose();
         _resultTensor.Dispose();
     }
@@ -129,7 +134,7 @@ public class SketchPad : MonoBehaviour
             if (_progress == null)
             {
                 Pix2Pix.Image.ConvertToTensor(_sourceTexture, _sourceTensor);
-                _progress = Pix2Pix.Generator.Start(_sourceTensor, _weightTable, _resultTensor);
+                _progress = _generator.Start(_sourceTensor, _resultTensor);
             }
 
             if (_progress.MoveNext())
