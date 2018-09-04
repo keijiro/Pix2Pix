@@ -70,10 +70,10 @@ namespace Pix2Pix
         {
             switch (Order)
             {
-                case 0: return Dim1.ToString();
-                case 1: return Dim1 + "x" + Dim2;
-                case 2: return Dim1 + "x" + Dim2 + "x" + Dim3;
-                case 3: return Dim1 + "x" + Dim2 + "x" + Dim3 + "x" + Dim4;
+                case 1: return Dim1.ToString();
+                case 2: return Dim1 + "x" + Dim2;
+                case 3: return Dim1 + "x" + Dim2 + "x" + Dim3;
+                case 4: return Dim1 + "x" + Dim2 + "x" + Dim3 + "x" + Dim4;
             }
             return "";
         }
@@ -118,22 +118,20 @@ namespace Pix2Pix
 
         public void Dispose()
         { 
-            Dispose(true);
-            System.GC.SuppressFinalize(this);           
-        }
-
-        ~Tensor()
-        {
-            Dispose(false);
-        }
-
-        void Dispose(bool disposing)
-        {
-            if (disposing && Buffer != null)
+            if (Buffer != null)
             {
                 GpuBackend.ReleaseBuffer(Buffer);
                 Buffer = null;
             }
+        }
+
+        ~Tensor()
+        {
+            if (Buffer != null)
+                UnityEngine.Debug.LogError(
+                    "Tensor (" + Shape + ") leaked. " +
+                    "It must be explicitly disposed in the main thread."
+                );
         }
 
         #endregion
