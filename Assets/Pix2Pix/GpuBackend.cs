@@ -21,32 +21,41 @@ namespace Pix2Pix
 
         void OnDestroy()
         {
-            ReleaseAllBuffers();
+            ReleaseBufferPool();
+            _instance = null;
         }
 
         #endregion
 
         #region Compute buffer management
 
-        List<ComputeBuffer> _buffers = new List<ComputeBuffer>();
+        List<ComputeBuffer> _bufferPool = new List<ComputeBuffer>();
 
         internal static ComputeBuffer AllocateBuffer(int size)
         {
-            var buffer = new ComputeBuffer(size, sizeof(float));
-            _instance._buffers.Add(buffer);
-            return buffer;
+            foreach (var buffer in _instance._bufferPool)
+            {
+                if (buffer.count == size)
+                {
+                    _instance._bufferPool.Remove(buffer);
+                    return buffer;
+                }
+            }
+            return new ComputeBuffer(size, sizeof(float));
         }
 
         internal static void ReleaseBuffer(ComputeBuffer buffer)
         {
-            _instance._buffers.Remove(buffer);
-            buffer.Release();
+            if (_instance != null)
+                _instance._bufferPool.Add(buffer);
+            else
+                buffer.Dispose();
         }
 
-        void ReleaseAllBuffers()
+        void ReleaseBufferPool()
         {
-            foreach (var buffer in _buffers) buffer.Release();
-            _buffers.Clear();
+            foreach (var buffer in _bufferPool) buffer.Dispose();
+            _bufferPool.Clear();
         }
 
         #endregion
@@ -138,6 +147,33 @@ namespace Pix2Pix
             compute.Dispatch(kernel, channels / threadCount.x, 1, 1);
         }
 
+        static string GetConv2DKernelName(int outChannels)
+        {
+            switch (outChannels)
+            {
+                case 64  : return "Conv2D_64";
+                case 128 : return "Conv2D_128";
+                case 256 : return "Conv2D_256";
+                case 512 : return "Conv2D_512";
+            }
+            Debug.LogError("Invalid channel count.");
+            return "";
+        }
+
+        static string GetDeconv2DKernelName(int outChannels)
+        {
+            switch (outChannels)
+            {
+                case 3   : return "TransConv2D_final";
+                case 64  : return "TransConv2D_64";
+                case 128 : return "TransConv2D_128";
+                case 256 : return "TransConv2D_256";
+                case 512 : return "TransConv2D_512";
+            }
+            Debug.LogError("Invalid channel count.");
+            return "";
+        }
+
         internal static void InvokeConv2D
             (Tensor input, Tensor filter, Tensor bias, Tensor output)
         {
@@ -147,7 +183,7 @@ namespace Pix2Pix
             var outChannels = filter.Shape[3];
             Debug.Assert(output.Shape[2] == outChannels);
 
-            var kernelName = "Conv2D_" + outChannels;
+            var kernelName = GetConv2DKernelName(outChannels);
             InvokeConv2DInternal(kernelName, input, filter, bias, output);
         }
 
@@ -160,8 +196,7 @@ namespace Pix2Pix
             var outChannels = filter.Shape[3];
             Debug.Assert(output.Shape[2] == outChannels);
 
-            var kernelName = "TransConv2D_" +
-                (outChannels == 3 ? "final" : outChannels.ToString());
+            var kernelName = GetDeconv2DKernelName(outChannels);
             InvokeConv2DInternal(kernelName, input, filter, bias, output);
         }
 
