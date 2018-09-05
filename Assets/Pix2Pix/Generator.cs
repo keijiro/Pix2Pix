@@ -17,8 +17,36 @@ namespace Pix2Pix
 
         public Generator(Dictionary<string, Tensor> weights)
         {
-            _weights = weights;
-            _stack = new Stack<Tensor>();
+            _encoders[0] = new Layer {
+                Kernel = weights["generator/encoder_1/conv2d/kernel"],
+                Bias   = weights["generator/encoder_1/conv2d/bias"]
+            };
+
+            _decoders[0] = new Layer {
+                Kernel = weights["generator/decoder_1/conv2d_transpose/kernel"],
+                Bias   = weights["generator/decoder_1/conv2d_transpose/bias"]
+            };
+
+            for (var i = 1; i < 8; i++)
+            {
+                var scope = "generator/encoder_" + (i + 1);
+
+                _encoders[i] = new Layer {
+                    Kernel = weights[scope + "/conv2d/kernel"],
+                    Bias   = weights[scope + "/conv2d/bias"],
+                    Beta   = weights[scope + "/batch_normalization/beta"],
+                    Gamma  = weights[scope + "/batch_normalization/gamma"]
+                };
+
+                scope = "generator/decoder_" + (i + 1);
+
+                _decoders[i] = new Layer {
+                    Kernel = weights[scope + "/conv2d_transpose/kernel"],
+                    Bias   = weights[scope + "/conv2d_transpose/bias"],
+                    Beta   = weights[scope + "/batch_normalization/beta"],
+                    Gamma  = weights[scope + "/batch_normalization/gamma"]
+                };
+            }
         }
 
         public void Dispose()
@@ -36,12 +64,17 @@ namespace Pix2Pix
 
         #region Internal structure
 
-        Dictionary<string, Tensor> _weights;
-        Stack<Tensor> _stack;
-
         // Heuristic costs of each layer (total = 1,000)
         static readonly int[] _encoderCosts = { 15, 74, 74, 74, 40, 10, 6, 6 };
         static readonly int[] _decoderCosts = { 150, 150, 150, 150, 75, 20, 6, 0 };
+
+        // Encoder/decoder layers
+        struct Layer { public Tensor Kernel, Bias, Beta, Gamma; }
+        Layer[] _encoders = new Layer[8];
+        Layer[] _decoders = new Layer[8];
+
+        // Temporary tensor stack
+        Stack<Tensor> _stack = new Stack<Tensor>();
 
         #endregion
 
@@ -52,61 +85,47 @@ namespace Pix2Pix
             var s = _stack;
 
             {
-                var kernel = _weights["generator/encoder_1/conv2d/kernel"];
-                var bias   = _weights["generator/encoder_1/conv2d/bias"];
+                var layer = _encoders[0];
 
-                _stack.Push(Math.Conv2D(input, kernel, bias));
+                _stack.Push(Math.Conv2D(input, layer.Kernel, layer.Bias));
 
                 yield return _encoderCosts[0];
             }
 
-            for (var i = 2; i <= 8; i++)
+            for (var i = 1; i < 8; i++)
             {
-                var scope = "generator/encoder_" + i;
-
-                var kernel = _weights[scope + "/conv2d/kernel"];
-                var bias   = _weights[scope + "/conv2d/bias"];
-                var beta   = _weights[scope + "/batch_normalization/beta"];
-                var gamma  = _weights[scope + "/batch_normalization/gamma"];
+                var layer = _encoders[i];
 
                 s.Push(Math.LeakyRelu(s.Peek(), 0.2f));
-                using (var t = s.Pop()) s.Push(Math.Conv2D(t, kernel, bias));
-                using (var t = s.Pop()) s.Push(Math.BatchNorm(t, gamma, beta));
+                using (var t = s.Pop()) s.Push(Math.Conv2D(t, layer.Kernel, layer.Bias));
+                using (var t = s.Pop()) s.Push(Math.BatchNorm(t, layer.Gamma, layer.Beta));
 
-                yield return _encoderCosts[i - 1];
+                yield return _encoderCosts[i];
             }
 
-            for (var i = 8; i >= 2; i--)
+            for (var i = 7; i > 0; i--)
             {
-                var scope = "generator/decoder_" + i;
+                var layer = _decoders[i];
 
-                var kernel = _weights[scope + "/conv2d_transpose/kernel"];
-                var bias   = _weights[scope + "/conv2d_transpose/bias"];
-                var beta   = _weights[scope + "/batch_normalization/beta"];
-                var gamma  = _weights[scope + "/batch_normalization/gamma"];
-
-                if (i < 8)
-                {
+                if (i < 7)
                     using (Tensor t = s.Pop(), skip = s.Pop())
                         s.Push(Math.Concat(t, skip));
-                }
 
                 using (var t = s.Pop()) s.Push(Math.Relu(t));
-                using (var t = s.Pop()) s.Push(Math.Deconv2D(t, kernel, bias));
-                using (var t = s.Pop()) s.Push(Math.BatchNorm(t, gamma, beta));
+                using (var t = s.Pop()) s.Push(Math.Deconv2D(t, layer.Kernel, layer.Bias));
+                using (var t = s.Pop()) s.Push(Math.BatchNorm(t, layer.Gamma, layer.Beta));
 
-                yield return _decoderCosts[i - 1];
+                yield return _decoderCosts[i];
             }
 
             {
-                var kernel = _weights["generator/decoder_1/conv2d_transpose/kernel"];
-                var bias   = _weights["generator/decoder_1/conv2d_transpose/bias"];
+                var layer = _decoders[0];
 
                 using (Tensor t = s.Pop(), skip = s.Pop())
                     s.Push(Math.Concat(t, skip));
 
                 using (var t = s.Pop()) s.Push(Math.Relu(t));
-                using (var t = s.Pop()) s.Push(Math.Deconv2D(t, kernel, bias));
+                using (var t = s.Pop()) s.Push(Math.Deconv2D(t, layer.Kernel, layer.Bias));
                 using (var t = s.Pop()) Math.Tanh(t, output);
 
                 yield return _decoderCosts[0];
