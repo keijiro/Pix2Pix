@@ -1,10 +1,9 @@
 // Pix2Pix generator model
 // https://github.com/keijiro/Pix2Pix
 
-// This class runs the network in a coroutine-like fashion. It doesn't use
-// Unity's standard coroutine system but an ad-hoc enumerator to manage the
-// progress and internal state. The enumerator returns a heuristic cost value
-// for each step that can be used to estimate the GPU load.
+// This class runs the network in a time-sliced fashion. The Step() method
+// returns a heuristic cost value for each step that can be used to estimate
+// the GPU load.
 
 using UnityEngine;
 using System.Collections.Generic;
@@ -17,6 +16,12 @@ namespace Pix2Pix
 
         public Generator(Dictionary<string, Tensor> weights)
         {
+            // Initialize tensor objects with empty tensors.
+            for (var i = 0; i < 8; i ++) _skip[i] = new Tensor();
+            _temp1 = new Tensor();
+            _temp2 = new Tensor();
+
+            // Load all layer weights from the given dictionary.
             _encoders[0] = new Layer {
                 Kernel = weights["generator/encoder_1/conv2d/kernel"],
                 Bias   = weights["generator/encoder_1/conv2d/bias"]
@@ -51,13 +56,9 @@ namespace Pix2Pix
 
         public void Dispose()
         {
-            while (_stack.Count > 0) _stack.Pop().Dispose();
-        }
-
-        ~Generator()
-        {
-            if (_stack.Count > 0)
-                Debug.LogError("Generator instance must be explicitly disposed.");
+            foreach (var t in _skip) t.Dispose();
+            _temp1.Dispose();
+            _temp2.Dispose();
         }
 
         #endregion
@@ -73,63 +74,75 @@ namespace Pix2Pix
         Layer[] _encoders = new Layer[8];
         Layer[] _decoders = new Layer[8];
 
-        // Temporary tensor stack
-        Stack<Tensor> _stack = new Stack<Tensor>();
+        // Temporary tensors
+        Tensor[] _skip = new Tensor[8];
+        Tensor _temp1;
+        Tensor _temp2;
+
+        int _progress;
 
         #endregion
 
-        #region Generator coroutine
+        #region Public properties and methods
 
-        public IEnumerator<int> Start(Tensor input, Tensor output)
+        public bool Running { get { return _progress > 0 && _progress < 16; } }
+
+        public void Start(Texture input)
         {
-            var s = _stack;
+            Image.ConvertToTensor(input, _temp1);
+            _progress = 0;
+        }
 
+        public void GetResult(RenderTexture output)
+        {
+            Image.ConvertFromTensor(_temp1, output);
+        }
+
+        public int Step()
+        {
+            if (_progress == 0)
             {
                 var layer = _encoders[0];
-
-                _stack.Push(Math.Conv2D(input, layer.Kernel, layer.Bias));
-
-                yield return _encoderCosts[0];
+                Math.Conv2D(_temp1, layer.Kernel, layer.Bias, _skip[0]);
             }
-
-            for (var i = 1; i < 8; i++)
+            else if (_progress < 8)
             {
-                var layer = _encoders[i];
-
-                s.Push(Math.LeakyRelu(s.Peek(), 0.2f));
-                using (var t = s.Pop()) s.Push(Math.Conv2D(t, layer.Kernel, layer.Bias));
-                using (var t = s.Pop()) s.Push(Math.BatchNorm(t, layer.Gamma, layer.Beta));
-
-                yield return _encoderCosts[i];
+                var layer = _encoders[_progress];
+                Math.LeakyRelu(_skip[_progress - 1], 0.2f, _temp1);
+                Math.Conv2D(_temp1, layer.Kernel, layer.Bias, _temp2);
+                Math.BatchNorm(_temp2, layer.Gamma, layer.Beta, _skip[_progress]);
             }
-
-            for (var i = 7; i > 0; i--)
+            else if (_progress == 8)
             {
+                var layer = _decoders[7];
+                Math.Relu(_skip[7], _temp1);
+                Math.Deconv2D(_temp1, layer.Kernel, layer.Bias, _temp2);
+                Math.BatchNorm(_temp2, layer.Gamma, layer.Beta, _temp1);
+            }
+            else if (_progress < 15)
+            {
+                var i = 15 - _progress;
                 var layer = _decoders[i];
-
-                if (i < 7)
-                    using (Tensor t = s.Pop(), skip = s.Pop())
-                        s.Push(Math.Concat(t, skip));
-
-                using (var t = s.Pop()) s.Push(Math.Relu(t));
-                using (var t = s.Pop()) s.Push(Math.Deconv2D(t, layer.Kernel, layer.Bias));
-                using (var t = s.Pop()) s.Push(Math.BatchNorm(t, layer.Gamma, layer.Beta));
-
-                yield return _decoderCosts[i];
+                Math.Concat(_temp1, _skip[i], _temp2);
+                Math.Relu(_temp2, _temp1);
+                Math.Deconv2D(_temp1, layer.Kernel, layer.Bias, _temp2);
+                Math.BatchNorm(_temp2, layer.Gamma, layer.Beta, _temp1);
             }
-
+            else
             {
                 var layer = _decoders[0];
-
-                using (Tensor t = s.Pop(), skip = s.Pop())
-                    s.Push(Math.Concat(t, skip));
-
-                using (var t = s.Pop()) s.Push(Math.Relu(t));
-                using (var t = s.Pop()) s.Push(Math.Deconv2D(t, layer.Kernel, layer.Bias));
-                using (var t = s.Pop()) Math.Tanh(t, output);
-
-                yield return _decoderCosts[0];
+                Math.Concat(_temp1, _skip[0], _temp2);
+                Math.Relu(_temp2, _temp1);
+                Math.Deconv2D(_temp1, layer.Kernel, layer.Bias, _temp2);
+                Math.Tanh(_temp2, _temp1);
             }
+
+            var cost = (_progress < 8) ?
+                _encoderCosts[_progress] : _decoderCosts[15 - _progress];
+
+            _progress++;
+
+            return cost;
         }
 
         #endregion

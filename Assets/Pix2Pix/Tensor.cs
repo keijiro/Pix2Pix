@@ -93,18 +93,38 @@ namespace Pix2Pix
 
         #region Constructor and other common methods
 
+        public Tensor()
+        {
+        }
+
         public Tensor(Shape shape, float[] data = null)
         {
             Shape = shape;
 
             var total = shape.ElementCount;
-            Buffer = GpuBackend.AllocateBuffer(total);
+            if (total > 0) Buffer = GpuBackend.AllocateBuffer(total);
 
             if (data != null)
             {
                 UnityEngine.Debug.Assert(data.Length == total);
                 Buffer.SetData(data);
             }
+        }
+
+        public void Reset(Shape shape)
+        {
+            Shape = shape;
+
+            var total = shape.ElementCount;
+
+            if (Buffer != null && total != Buffer.count)
+            {
+                GpuBackend.ReleaseBuffer(Buffer);
+                Buffer = null;
+            }
+
+            if (Buffer == null && total > 0)
+                Buffer = GpuBackend.AllocateBuffer(total);
         }
 
         public override string ToString()

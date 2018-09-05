@@ -9,6 +9,7 @@ namespace Pix2Pix
     {
         public static void ConvertToTensor(Texture source, Tensor tensor)
         {
+            tensor.Reset(new Shape(source.height, source.width, 3));
             GpuBackend.InvokeImageToTensor(source, tensor);
         }
 

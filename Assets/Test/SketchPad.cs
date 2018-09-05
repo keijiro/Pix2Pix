@@ -93,12 +93,8 @@ public class SketchPad : MonoBehaviour
 
     #region Pix2Pix implementation
 
-    Pix2Pix.Tensor _sourceTensor;
-    Pix2Pix.Tensor _resultTensor;
-
     Dictionary<string, Pix2Pix.Tensor> _weightTable;
     Pix2Pix.Generator _generator;
-    IEnumerator<int> _progress;
 
     float _budget = 100;
     float _budgetAdjust = 10;
@@ -109,9 +105,6 @@ public class SketchPad : MonoBehaviour
 
     void InitializePix2Pix()
     {
-        _sourceTensor = new Pix2Pix.Tensor(new Pix2Pix.Shape(256, 256, 3));
-        _resultTensor = new Pix2Pix.Tensor(new Pix2Pix.Shape(256, 256, 3));
-
         var filePath = System.IO.Path.Combine(Application.streamingAssetsPath, _weightFileName);
         _weightTable = Pix2Pix.WeightReader.ReadFromFile(filePath);
         _generator = new Pix2Pix.Generator(_weightTable);
@@ -121,9 +114,6 @@ public class SketchPad : MonoBehaviour
     {
         _generator.Dispose();
         Pix2Pix.WeightReader.DisposeTable(_weightTable);
-
-        _sourceTensor.Dispose();
-        _resultTensor.Dispose();
     }
 
     void UpdatePix2Pix()
@@ -131,21 +121,11 @@ public class SketchPad : MonoBehaviour
         // Advance the Pix2Pix inference until the current budget runs out.
         for (var cost = 0.0f; cost < _budget;)
         {
-            if (_progress == null)
-            {
-                Pix2Pix.Image.ConvertToTensor(_sourceTexture, _sourceTensor);
-                _progress = _generator.Start(_sourceTensor, _resultTensor);
-            }
+            if (!_generator.Running) _generator.Start(_sourceTexture);
 
-            if (_progress.MoveNext())
-            {
-                cost += _progress.Current;
-            }
-            else
-            {
-                Pix2Pix.Image.ConvertFromTensor(_resultTensor, _resultTexture);
-                _progress = null;
-            }
+            cost += _generator.Step();
+
+            if (!_generator.Running) _generator.GetResult(_resultTexture);
         }
 
         // Review the budget depending on the current frame time.
@@ -155,12 +135,14 @@ public class SketchPad : MonoBehaviour
         _budgetAdjust = Mathf.Max(_budgetAdjust - 0.05f, 0.5f);
 
         // Update the text display.
+        var rate = 60 * _budget / 1000;
+
         var perf = (_budgetAdjust < 1) ?
             _performanceLabels[(int)Mathf.Min(5, _budget / 100)] :
             "Measuring GPU performance...";
 
-        _textUI.text = "Pix2Pix refresh rate: " +
-            (60 * _budget / 1000).ToString("0.0") + " Hz (" + perf + ")";
+        _textUI.text =
+            string.Format("Pix2Pix refresh rate: {0:F1} Hz ({1})", rate, perf);
     }
 
     #endregion
