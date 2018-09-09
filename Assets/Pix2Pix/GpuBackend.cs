@@ -6,6 +6,7 @@ using System.Collections.Generic;
 
 namespace Pix2Pix
 {
+    [ExecuteInEditMode]
     sealed class GpuBackend : MonoBehaviour
     {
         #region MonoBehaviour implementation as a singleton-like class
@@ -19,7 +20,7 @@ namespace Pix2Pix
             _instance = this;
         }
 
-        void OnDestroy()
+        void OnDisable()
         {
             ReleaseBufferPool();
             _instance = null;
