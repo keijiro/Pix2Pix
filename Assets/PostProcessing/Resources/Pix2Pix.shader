@@ -7,6 +7,7 @@ Shader "Hidden/Pix2Pix/PostProcessing"
 
     TEXTURE2D_SAMPLER2D(_MainTex, sampler_MainTex);
     TEXTURE2D_SAMPLER2D(_EdgeTex, sampler_EdgeTex);
+    TEXTURE2D_SAMPLER2D(_PrevTex, sampler_PrevTex);
 
     half2 _EdgeParams;
 
@@ -44,9 +45,10 @@ Shader "Hidden/Pix2Pix/PostProcessing"
 
     half4 FragCompo(VaryingsDefault i) : SV_Target
     {
-        half4 c0 = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.texcoord);
-        half4 c1 = SAMPLE_TEXTURE2D(_EdgeTex, sampler_EdgeTex, i.texcoord);
-        return c0 * lerp(1, c1, _EdgeParams.y);
+        half4 c0 = SAMPLE_TEXTURE2D(_PrevTex, sampler_PrevTex, i.texcoord);
+        half4 c1 = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.texcoord);
+        half4 c2 = SAMPLE_TEXTURE2D(_EdgeTex, sampler_EdgeTex, i.texcoord);
+        return lerp(c0, c1 * lerp(1, c2, _EdgeParams.y), 0.2);
     }
 
     ENDHLSL

@@ -33,4 +33,4 @@ MonoBehaviour:
     value: 0.841
   edgeOpacity:
     overrideState: 1
-    value: 0.01
+    value: 0

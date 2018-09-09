@@ -24,6 +24,7 @@ namespace Pix2Pix.PostProcessing
         {
             internal static readonly int EdgeParams = Shader.PropertyToID("_EdgeParams");
             internal static readonly int EdgeTex = Shader.PropertyToID("_EdgeTex");
+            internal static readonly int PrevTex = Shader.PropertyToID("_PrevTex");
         }
 
         Dictionary<string, Tensor> _weightTable;
@@ -31,6 +32,7 @@ namespace Pix2Pix.PostProcessing
 
         RenderTexture _source;
         RenderTexture _result;
+        RenderTexture _history;
 
         public override void Init()
         {
@@ -68,6 +70,7 @@ namespace Pix2Pix.PostProcessing
 
             RuntimeUtilities.Destroy(_source);
             RuntimeUtilities.Destroy(_result);
+            RuntimeUtilities.Destroy(_history);
 
             base.Release();
         }
@@ -77,17 +80,25 @@ namespace Pix2Pix.PostProcessing
             var cmd = context.command;
             cmd.BeginSample("Pix2Pix");
 
+            if (_history == null)
+            {
+                _history = new RenderTexture(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+                _history.hideFlags = HideFlags.DontSave;
+            }
+
             var sheet = context.propertySheets.Get(Shader.Find("Hidden/Pix2Pix/PostProcessing"));
 
             sheet.properties.SetVector(ShaderIDs.EdgeParams, new Vector2(
                 settings.edgeContrast, settings.edgeOpacity
             ));
             sheet.properties.SetTexture(ShaderIDs.EdgeTex, _source);
+            sheet.properties.SetTexture(ShaderIDs.PrevTex, _history);
 
             cmd.BlitFullscreenTriangle(context.source, _source, sheet, 0);
             cmd.BlitFullscreenTriangle(_result, context.destination, sheet, 1);
+            cmd.BlitFullscreenTriangle(context.destination, _history);
 
-            for (var cost = 0.0f; cost < (Application.isPlaying ? 400 : 1200);)
+            for (var cost = 0.0f; cost < (Application.isPlaying ? 300 : 1200);)
             {
                 if (!_generator.Running) _generator.Start(_source);
                 cost += _generator.Step();
