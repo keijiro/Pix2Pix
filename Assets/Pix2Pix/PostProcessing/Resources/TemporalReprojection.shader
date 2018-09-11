@@ -82,23 +82,17 @@ Shader "Hidden/Pix2Pix/TemporalReprojection"
         half2 m1 = SAMPLE_TEX2D(_CameraMotionVectorsTexture, uv1).xy;
         half d1 = LinearizeDepth(SAMPLE_DEPTH(_CameraDepthTexture, uv1));
 
-        float2 uvc1 = SearchClosest(uv1);
-        half2 mc1 = SAMPLE_TEX2D(_CameraMotionVectorsTexture, uvc1).xy;
-
-        float2 uv0 = uv1 - mc1;
+        float2 uv0 = uv1 - m1;
         half3 md0 = SAMPLE_TEX2D(_PrevMoDepth, uv0).xyz;
         half4 c0 = SAMPLE_TEX2D(_PrevUVRemap, uv0);
 
         // Disocclusion test
-        float docc = abs(1 - d1 / md0.z) * _DepthWeight;
-
-        // Velocity weighting
-        float vw = distance(m1 * _DeltaTime.x, md0.xy * _DeltaTime.y) * _MotionWeight;
+        float docc = abs(1 - d1 / md0.z) * 20;//_DepthWeight;
 
         // Out of screen test
         float oscr = any(uv0 < 0) + any(uv0 > 1);
 
-        float alpha = 1 - saturate(docc + oscr + vw);
+        float alpha = 1 - saturate(docc + oscr);
 
         FragmentOutput o;
         o.uvRemap = half4(c0.xy, d1 < 0.9, min(c0.a, alpha));

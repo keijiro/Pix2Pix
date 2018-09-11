@@ -36,19 +36,7 @@ Shader "Hidden/Pix2Pix/PostProcessing"
         half3 g2 = c3 - c2;
         half g = sqrt(dot(g1, g1) + dot(g2, g2));
 
-        // Contrast
-        half thresh = _EdgeParams.x / 2;
-        half edge = step(0.8, g);//smoothstep(thresh, 1 - thresh, g);
-
-        return 1 - edge;
-    }
-
-    half4 FragCompo(VaryingsDefault i) : SV_Target
-    {
-        half4 c0 = SAMPLE_TEXTURE2D(_PrevTex, sampler_PrevTex, i.texcoord);
-        half4 c1 = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.texcoord);
-        half4 c2 = SAMPLE_TEXTURE2D(_EdgeTex, sampler_EdgeTex, i.texcoord);
-        return lerp(c0, c1 * lerp(1, c2, _EdgeParams.y), 0.2);
+        return 1 - step(_EdgeParams.x, g);
     }
 
     ENDHLSL
@@ -60,13 +48,6 @@ Shader "Hidden/Pix2Pix/PostProcessing"
             HLSLPROGRAM
             #pragma vertex VertDefault
             #pragma fragment FragEdge
-            ENDHLSL
-        }
-        Pass
-        {
-            HLSLPROGRAM
-            #pragma vertex VertDefault
-            #pragma fragment FragCompo
             ENDHLSL
         }
     }

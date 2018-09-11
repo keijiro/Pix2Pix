@@ -9,9 +9,9 @@ namespace Pix2Pix.PostProcessing
 
     [System.Serializable]
     [PostProcess(typeof(Pix2PixRenderer), PostProcessEvent.BeforeStack, "Pix2Pix")]
-    public sealed class Pix2Pix : PostProcessEffectSettings
+    public sealed class Pix2PixEffect : PostProcessEffectSettings
     {
-        [Range(0, 1)] public FloatParameter edgeContrast = new FloatParameter { value = 0.5f };
+        [Range(0, 2)] public FloatParameter edgeThreshold = new FloatParameter { value = 0.8f };
         [Range(0, 1)] public FloatParameter edgeOpacity = new FloatParameter { value = 0 };
     }
 
@@ -19,16 +19,13 @@ namespace Pix2Pix.PostProcessing
 
     #region Effect renderer
 
-    sealed class Pix2PixRenderer : PostProcessEffectRenderer<Pix2Pix>
+    sealed class Pix2PixRenderer : PostProcessEffectRenderer<Pix2PixEffect>
     {
         static class ShaderIDs
         {
             internal static readonly int EdgeParams = Shader.PropertyToID("_EdgeParams");
-            internal static readonly int EdgeTex = Shader.PropertyToID("_EdgeTex");
             internal static readonly int PrevTex = Shader.PropertyToID("_PrevTex");
 
-            internal static readonly int DepthWeight  = Shader.PropertyToID("_DepthWeight");
-            internal static readonly int MotionWeight = Shader.PropertyToID("_MotionWeight");
             internal static readonly int UVRemap      = Shader.PropertyToID("_UVRemap");
             internal static readonly int PrevUVRemap  = Shader.PropertyToID("_PrevUVRemap");
             internal static readonly int PrevMoDepth  = Shader.PropertyToID("_PrevMoDepth");
@@ -111,7 +108,7 @@ namespace Pix2Pix.PostProcessing
             var reset = false;
 
             sheet.properties.SetVector(ShaderIDs.EdgeParams, new Vector2(
-                settings.edgeContrast, settings.edgeOpacity
+                settings.edgeThreshold, settings.edgeOpacity
             ));
             cmd.BlitFullscreenTriangle(context.source, _source, sheet, 0);
 
@@ -134,8 +131,6 @@ namespace Pix2Pix.PostProcessing
 
             // Set the shader uniforms.
             sheet = context.propertySheets.Get(Shader.Find("Hidden/Pix2Pix/TemporalReprojection"));
-            sheet.properties.SetFloat(ShaderIDs.DepthWeight, 20);
-            sheet.properties.SetFloat(ShaderIDs.MotionWeight, 1000);
             if (_prevUVRemap != null) sheet.properties.SetTexture(ShaderIDs.PrevUVRemap, _prevUVRemap);
             if (_prevMoDepth != null) sheet.properties.SetTexture(ShaderIDs.PrevMoDepth, _prevMoDepth);
             sheet.properties.SetVector(ShaderIDs.DeltaTime, new Vector2(Time.deltaTime, _prevDeltaTime));
