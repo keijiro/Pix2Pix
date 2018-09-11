@@ -38,7 +38,7 @@ Shader "Hidden/Pix2Pix/PostProcessing"
 
         // Contrast
         half thresh = _EdgeParams.x / 2;
-        half edge = smoothstep(thresh, 1 - thresh, g);
+        half edge = step(0.8, g);//smoothstep(thresh, 1 - thresh, g);
 
         return 1 - edge;
     }
