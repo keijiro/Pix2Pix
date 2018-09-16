@@ -1,9 +1,6 @@
 #include "PostProcessing/Shaders/StdLib.hlsl"
-#include "PostProcessing/Shaders/Colors.hlsl"
 
 TEXTURE2D_SAMPLER2D(_MainTex, sampler_MainTex);
-TEXTURE2D_SAMPLER2D(_EdgeTex, sampler_EdgeTex);
-TEXTURE2D_SAMPLER2D(_PrevTex, sampler_PrevTex);
 
 half2 _EdgeParams;
 

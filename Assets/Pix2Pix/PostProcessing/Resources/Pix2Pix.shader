@@ -27,13 +27,5 @@ Shader "Hidden/Pix2Pix/PostProcessing"
             #include "TemporalReprojection.hlsl"
             ENDHLSL
         }
-        Pass
-        {
-            HLSLPROGRAM
-            #pragma vertex VertDefault
-            #pragma fragment FragComposite
-            #include "TemporalReprojection.hlsl"
-            ENDHLSL
-        }
     }
 }
