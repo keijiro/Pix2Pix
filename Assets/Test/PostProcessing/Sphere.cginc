@@ -9,7 +9,9 @@
 #define PASS_CUBE_SHADOWCASTER
 #endif
 
+float _Seed;
 float4x4 _NonJitteredVP;
+float4x4 _PreviousM;
 float4x4 _PreviousVP;
 
 // Vertex input attributes
@@ -80,8 +82,8 @@ Varyings VertexOutput(float3 prev, float3 pos, half3 nrm, half4 otan)
 #elif defined(PASS_MOTIONVECTORS)
     // Motion vector pass
     o.position = UnityWorldToClipPos(wpos);
-    o.transfer0 = mul(_PreviousVP, float4(prev, 1));
-    o.transfer1 = mul(_NonJitteredVP, float4(pos, 1));
+    o.transfer0 = mul(_PreviousVP, mul(_PreviousM, float4(prev, 1)));
+    o.transfer1 = mul(_NonJitteredVP, float4(wpos, 1));
 
 #else
     // GBuffer construction pass
@@ -104,7 +106,7 @@ float3 ConstructNormal(float3 v1, float3 v2, float3 v3)
 
 float3 Displace(float3 p, float t)
 {
-    float3 offs = float3(0, 0, t * 2);
+    float3 offs = float3(_Seed, 0, t * 1.4);
     float4 g = snoise_grad(p * 1.1 + offs);
     p *= (1 + 2 * g.w * g.w * g.w * g.w * g.w * g.w * g.w);
     p += g.xyz * 0.05;

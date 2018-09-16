@@ -1,5 +1,9 @@
 Shader "Pix2Pix/Sphere"
 {
+    Properties
+    {
+        _Seed("Seed", Float) = 0
+    }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
