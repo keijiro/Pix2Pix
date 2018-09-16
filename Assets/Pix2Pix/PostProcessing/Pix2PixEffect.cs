@@ -24,8 +24,6 @@ namespace Pix2Pix.PostProcessing
         static class ShaderIDs
         {
             internal static readonly int EdgeParams = Shader.PropertyToID("_EdgeParams");
-            internal static readonly int PrevTex = Shader.PropertyToID("_PrevTex");
-
             internal static readonly int UVRemap      = Shader.PropertyToID("_UVRemap");
             internal static readonly int PrevUVRemap  = Shader.PropertyToID("_PrevUVRemap");
             internal static readonly int PrevMoDepth  = Shader.PropertyToID("_PrevMoDepth");
@@ -35,15 +33,14 @@ namespace Pix2Pix.PostProcessing
         Dictionary<string, Tensor> _weightTable;
         Generator _generator;
 
+        Shader _shader;
+        RenderTargetIdentifier[] _mrt = new RenderTargetIdentifier[2];
+
         RenderTexture _source;
         RenderTexture _result;
-        RenderTexture _history;
 
-        RenderTexture _lastFrame;
         RenderTexture _prevUVRemap;
         RenderTexture _prevMoDepth;
-
-        RenderTargetIdentifier[] _mrt = new RenderTargetIdentifier[2];
 
         float _prevDeltaTime;
         int _frameCount;
@@ -52,9 +49,12 @@ namespace Pix2Pix.PostProcessing
         {
             base.Init();
 
-            var filePath = System.IO.Path.Combine(Application.streamingAssetsPath, "edges2cats_AtoB.pict");
-            _weightTable = WeightReader.ReadFromFile(filePath);
+            var filePath = System.IO.Path.Combine
+                (Application.streamingAssetsPath, "edges2cats_AtoB.pict");
 
+            _shader = Shader.Find("Hidden/Pix2Pix/PostProcessing");
+
+            _weightTable = WeightReader.ReadFromFile(filePath);
             _generator = new Generator(_weightTable);
 
             _source = new RenderTexture(256, 256, 0);
@@ -85,9 +85,6 @@ namespace Pix2Pix.PostProcessing
             RuntimeUtilities.Destroy(_source);
             RuntimeUtilities.Destroy(_result);
 
-            if (_history != null) RenderTexture.ReleaseTemporary(_history);
-
-            if (_lastFrame != null) RenderTexture.ReleaseTemporary(_lastFrame);
             if (_prevUVRemap != null) RenderTexture.ReleaseTemporary(_prevUVRemap);
             if (_prevMoDepth != null) RenderTexture.ReleaseTemporary(_prevMoDepth);
 
@@ -104,71 +101,66 @@ namespace Pix2Pix.PostProcessing
             var cmd = context.command;
             cmd.BeginSample("Pix2Pix");
 
-            var sheet = context.propertySheets.Get(Shader.Find("Hidden/Pix2Pix/PostProcessing"));
-            var reset = false;
+            var sheet = context.propertySheets.Get(_shader);
+            var props = sheet.properties;
 
-            sheet.properties.SetVector(ShaderIDs.EdgeParams, new Vector2(
-                settings.edgeThreshold, settings.edgeOpacity
-            ));
+            // Edge detection pass
+            props.SetVector(
+                ShaderIDs.EdgeParams,
+                new Vector2(settings.edgeThreshold, settings.edgeOpacity)
+            );
+
             cmd.BlitFullscreenTriangle(context.source, _source, sheet, 0);
 
-            for (var cost = 0.0f; cost < (Application.isPlaying ? 180 : 1200);)
+            // Pix2Pix generator pass
+            var budget = Application.isPlaying ? 180 : 1200;
+            var update = false;
+
+            for (var cost = 0.0f; cost < budget;)
             {
                 if (!_generator.Running) _generator.Start(_source);
+
                 cost += _generator.Step();
+
                 if (!_generator.Running)
                 {
                     _generator.GetResult(_result);
-                    reset = true;
+                    update = true;
                 }
             }
 
-            // Allocate RTs for storing the next frame state.
-            var uvRemap = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
-            var moDepth = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+            // Temporal reprojection pass
+            if (_prevUVRemap != null) props.SetTexture(ShaderIDs.PrevUVRemap, _prevUVRemap);
+            if (_prevMoDepth != null) props.SetTexture(ShaderIDs.PrevMoDepth, _prevMoDepth);
+
+            props.SetVector(
+                ShaderIDs.DeltaTime,
+                new Vector2(Time.deltaTime, _prevDeltaTime)
+            );
+
+            var uvRemap = RenderTexture.GetTemporary
+                (context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+            var moDepth = RenderTexture.GetTemporary
+                (context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+
             _mrt[0] = uvRemap.colorBuffer;
             _mrt[1] = moDepth.colorBuffer;
 
-            // Set the shader uniforms.
-            sheet = context.propertySheets.Get(Shader.Find("Hidden/Pix2Pix/TemporalReprojection"));
-            if (_prevUVRemap != null) sheet.properties.SetTexture(ShaderIDs.PrevUVRemap, _prevUVRemap);
-            if (_prevMoDepth != null) sheet.properties.SetTexture(ShaderIDs.PrevMoDepth, _prevMoDepth);
-            sheet.properties.SetVector(ShaderIDs.DeltaTime, new Vector2(Time.deltaTime, _prevDeltaTime));
+            cmd.BlitFullscreenTriangle
+                (context.source, _mrt, uvRemap.depthBuffer, sheet, update ? 1 : 2);
 
-            if (reset)
-            {
-                // Update the last frame store.
-                if (_lastFrame != null) RenderTexture.ReleaseTemporary(_lastFrame);
-                _lastFrame = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
-                cmd.BlitFullscreenTriangle(_result, _lastFrame);
+            // Composition pass
+            props.SetTexture(ShaderIDs.UVRemap, uvRemap);
+            cmd.BlitFullscreenTriangle(_result, context.destination, sheet, 3);
 
-                // Reset pass
-                cmd.BlitFullscreenTriangle(context.source, _mrt, uvRemap.depthBuffer, sheet, 0);
-            }
-            else
-            {
-                // Temporal reprojection pass
-                cmd.BlitFullscreenTriangle(context.source, _mrt, uvRemap.depthBuffer, sheet, 1);
-            }
+            // Discard the previous frame state.
+            if (_prevUVRemap != null) RenderTexture.ReleaseTemporary(_prevUVRemap);
+            if (_prevMoDepth != null) RenderTexture.ReleaseTemporary(_prevMoDepth);
 
-        // Second pass: Composition
-        var newHistory = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
-        if (_history != null) sheet.properties.SetTexture(ShaderIDs.PrevTex, _history);
-        sheet.properties.SetTexture(ShaderIDs.UVRemap, uvRemap);
-        cmd.BlitFullscreenTriangle(_lastFrame, newHistory, sheet, 2);
-        cmd.BlitFullscreenTriangle(newHistory, context.destination);
-
-        if (_history != null) RenderTexture.ReleaseTemporary(_history);
-        _history = newHistory;
-
-        // Discard the previous frame state.
-        if (_prevUVRemap != null) RenderTexture.ReleaseTemporary(_prevUVRemap);
-        if (_prevMoDepth != null) RenderTexture.ReleaseTemporary(_prevMoDepth);
-
-        // Update the internal state.
-        _prevUVRemap = uvRemap;
-        _prevMoDepth = moDepth;
-        _prevDeltaTime = Time.deltaTime;
+            // Update the internal state.
+            _prevUVRemap = uvRemap;
+            _prevMoDepth = moDepth;
+            _prevDeltaTime = Time.deltaTime;
 
             cmd.EndSample("Pix2Pix");
         }
