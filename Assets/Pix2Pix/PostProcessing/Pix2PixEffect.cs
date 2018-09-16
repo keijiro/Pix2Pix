@@ -23,7 +23,8 @@ namespace Pix2Pix.PostProcessing
     {
         static class ShaderIDs
         {
-            internal static readonly int EdgeParams  = Shader.PropertyToID("_EdgeParams");
+            internal static readonly int EdgeParams = Shader.PropertyToID("_EdgeParams");
+            internal static readonly int EdgeTex = Shader.PropertyToID("_EdgeTex");
             internal static readonly int RemapTex = Shader.PropertyToID("_RemapTex");
         }
 
@@ -109,18 +110,19 @@ namespace Pix2Pix.PostProcessing
 
             for (var cost = 0.0f; cost < budget;)
             {
-                if (!_generator.Running) _generator.Start(_source);
+                if (!_generator.Running)
+                {
+                    _generator.Start(_source);
+                    update = true;
+                }
 
                 cost += _generator.Step();
 
-                if (!_generator.Running)
-                {
-                    _generator.GetResult(_result);
-                    update = true;
-                }
+                if (!_generator.Running) _generator.GetResult(_result);
             }
 
             // Temporal reprojection pass
+            props.SetTexture(ShaderIDs.EdgeTex, _source);
             if (_remap != null) props.SetTexture(ShaderIDs.RemapTex, _remap);
 
             var newRemap = RenderTexture.GetTemporary
