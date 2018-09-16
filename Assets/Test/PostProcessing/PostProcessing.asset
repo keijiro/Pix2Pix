@@ -30,10 +30,10 @@ MonoBehaviour:
     value: 1
   edgeThreshold:
     overrideState: 1
-    value: 0.97
+    value: 1.05
   edgeOpacity:
     overrideState: 1
-    value: 0
+    value: 0.251
 --- !u!114 &114558861952068370
 MonoBehaviour:
   m_ObjectHideFlags: 3

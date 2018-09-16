@@ -19,7 +19,7 @@ void ImageToTensor(uint2 id : SV_DispatchThreadID)
 {
     float3 p = InputImage[id] * 2 - 1;
 
-    uint i = Shape.z * (id.x + Shape.y * id.y);
+    uint i = Shape.z * (id.x + Shape.y * (Shape.x - 1 - id.y));
 
     OutputTensor[i++] = p.x;
     OutputTensor[i++] = p.y;
@@ -29,7 +29,7 @@ void ImageToTensor(uint2 id : SV_DispatchThreadID)
 [numthreads(16, 16, 1)]
 void TensorToImage(uint2 id : SV_DispatchThreadID)
 {
-    uint i = Shape.z * (id.x + Shape.y * id.y);
+    uint i = Shape.z * (id.x + Shape.y * (Shape.x - 1 - id.y));
 
     float r = InputTensor[i++];
     float g = InputTensor[i++];
