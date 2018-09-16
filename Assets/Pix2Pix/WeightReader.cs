@@ -37,7 +37,9 @@ namespace Pix2Pix
         public static Dictionary<string, Tensor> ReadFromFile(string filename)
         {
             var table = new Dictionary<string, Tensor>();
-            var reader = new BinaryReader(File.Open(filename, FileMode.Open));
+
+            var file = File.Open(filename, FileMode.Open);
+            var reader = new BinaryReader(file);
 
             // Read the shape list.
             var length = reader.ReadBEInt();
@@ -72,6 +74,8 @@ namespace Pix2Pix
 
                 table[info.name] = tensor;
             }
+
+            file.Close();
 
             return table;
         }
