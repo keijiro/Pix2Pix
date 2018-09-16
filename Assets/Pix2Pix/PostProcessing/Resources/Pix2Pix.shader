@@ -7,7 +7,7 @@ Shader "Hidden/Pix2Pix/PostProcessing"
         {
             HLSLPROGRAM
             #pragma vertex VertDefault
-            #pragma fragment FragEdge
+            #pragma fragment Frag
             #include "EdgeDetection.hlsl"
             ENDHLSL
         }
@@ -15,7 +15,8 @@ Shader "Hidden/Pix2Pix/PostProcessing"
         {
             HLSLPROGRAM
             #pragma vertex VertDefault
-            #pragma fragment FragInitialize
+            #pragma fragment Frag
+            #define PIX2PIX_RESET_REMAP
             #include "TemporalReprojection.hlsl"
             ENDHLSL
         }
@@ -23,7 +24,7 @@ Shader "Hidden/Pix2Pix/PostProcessing"
         {
             HLSLPROGRAM
             #pragma vertex VertDefault
-            #pragma fragment FragUpdate
+            #pragma fragment Frag
             #include "TemporalReprojection.hlsl"
             ENDHLSL
         }

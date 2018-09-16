@@ -126,7 +126,7 @@ namespace Pix2Pix.PostProcessing
             if (_remap != null) props.SetTexture(ShaderIDs.RemapTex, _remap);
 
             var newRemap = RenderTexture.GetTemporary
-                (context.width, context.height, 0, RenderTextureFormat.RGHalf);
+                (context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
 
             _mrt[0] = context.destination;
             _mrt[1] = newRemap.colorBuffer;

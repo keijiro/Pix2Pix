@@ -14,39 +14,33 @@ half2 _EdgeParams;
 struct FragmentOutput
 {
     half4 color : SV_Target0;
-    half2 remap : SV_Target1;
+    half4 remap : SV_Target1;
 };
 
-bool DepthMask(float depth)
+half DepthMask(float2 uv)
 {
     const float epsilon = 1e-5;
+    float d = SAMPLE_DEPTH(_CameraDepthTexture, uv);
 #if defined(UNITY_REVERSED_Z)
-    return depth > epsilon;
+    return d > epsilon;
 #else
-    return depth < 1 - epsilon;
+    return d < 1 - epsilon;
 #endif
 }
 
-FragmentOutput FragInitialize(VaryingsDefault i)
-{
-    half4 c1 = SAMPLE_TEX2D(_MainTex, i.texcoord);
-    half edge = SAMPLE_TEX2D(_EdgeTex, i.texcoord).x;
-
-    FragmentOutput o;
-    o.color = c1 * lerp(1, edge, _EdgeParams.y);
-    o.remap = i.texcoord;
-    return o;
-}
-
-FragmentOutput FragUpdate(VaryingsDefault i)
+FragmentOutput Frag(VaryingsDefault i)
 {
     half2 mv = SAMPLE_TEX2D(_CameraMotionVectorsTexture, i.texcoord).xy;
-    half2 remap = SAMPLE_TEX2D(_RemapTex, i.texcoord - mv).xy;
+    half4 remap = SAMPLE_TEX2D(_RemapTex, i.texcoord - mv);
+
+#ifdef PIX2PIX_RESET_REMAP
+    remap = half4(i.texcoord - mv, remap.xy);
+#endif
 
     half4 c1 = SAMPLE_TEX2D(_MainTex, i.texcoord);
-    half4 c2 = SAMPLE_TEX2D(_MainTex, remap);
+    half4 c2 = SAMPLE_TEX2D(_MainTex, remap.zw);
     half edge = SAMPLE_TEX2D(_EdgeTex, i.texcoord).x;
-    bool mask = DepthMask(SAMPLE_DEPTH(_CameraDepthTexture, i.texcoord));
+    half mask = DepthMask(i.texcoord);
 
     FragmentOutput o;
     o.color = lerp(c1, c2, mask) * lerp(1, edge, _EdgeParams.y);

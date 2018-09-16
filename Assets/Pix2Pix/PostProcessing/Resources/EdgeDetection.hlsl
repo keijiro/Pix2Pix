@@ -4,7 +4,7 @@ TEXTURE2D_SAMPLER2D(_MainTex, sampler_MainTex);
 
 half2 _EdgeParams;
 
-half4 FragEdge(VaryingsDefault i) : SV_Target
+half4 Frag(VaryingsDefault i) : SV_Target
 {
     float2 uv = i.texcoord;
     uv = (floor(uv * 256) + 0.5) / 256;
