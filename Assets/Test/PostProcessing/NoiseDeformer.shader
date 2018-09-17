@@ -1,4 +1,7 @@
-Shader "Pix2Pix/Sphere"
+// Noise deformer shader
+// https://github.com/keijiro/Pix2Pix
+
+Shader "Pix2Pix/Noise Deformer"
 {
     Properties
     {
@@ -16,7 +19,7 @@ Shader "Pix2Pix/Sphere"
             #pragma geometry Geometry
             #pragma fragment Fragment
             #pragma multi_compile_prepassfinal noshadowmask nodynlightmap nodirlightmap nolightmap
-            #include "Sphere.cginc"
+            #include "NoiseDeformer.cginc"
             ENDCG
         }
         Pass
@@ -28,7 +31,7 @@ Shader "Pix2Pix/Sphere"
             #pragma geometry Geometry
             #pragma fragment Fragment
             #pragma multi_compile_shadowcaster noshadowmask nodynlightmap nodirlightmap nolightmap
-            #include "Sphere.cginc"
+            #include "NoiseDeformer.cginc"
             ENDCG
         }
         Pass
@@ -41,7 +44,7 @@ Shader "Pix2Pix/Sphere"
             #pragma geometry Geometry
             #pragma fragment Fragment
             #define PASS_MOTIONVECTORS
-            #include "Sphere.cginc"
+            #include "NoiseDeformer.cginc"
             ENDCG
         }
     }

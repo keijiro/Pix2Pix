@@ -1,3 +1,6 @@
+// Pix2Pix post-processing effect
+// https://github.com/keijiro/Pix2Pix
+
 Shader "Hidden/Pix2Pix/PostProcessing"
 {
     SubShader

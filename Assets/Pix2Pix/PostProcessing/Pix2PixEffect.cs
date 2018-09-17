@@ -1,3 +1,6 @@
+// Pix2Pix post-processing effect
+// https://github.com/keijiro/Pix2Pix
+
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;

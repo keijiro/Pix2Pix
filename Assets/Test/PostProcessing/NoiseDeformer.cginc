@@ -1,3 +1,6 @@
+// Noise deformer shader
+// https://github.com/keijiro/Pix2Pix
+
 #include "UnityCG.cginc"
 #include "UnityGBuffer.cginc"
 #include "UnityStandardUtils.cginc"

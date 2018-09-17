@@ -1,3 +1,6 @@
+// Pix2Pix post-processing effect: Temporal reprojection shader
+// https://github.com/keijiro/Pix2Pix
+
 #include "PostProcessing/Shaders/StdLib.hlsl"
 
 #define SAMPLE_TEX2D(name, uv) SAMPLE_TEXTURE2D(name, sampler##name, uv)

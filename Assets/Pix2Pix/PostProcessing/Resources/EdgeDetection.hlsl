@@ -1,3 +1,6 @@
+// Pix2Pix post-processing effect: Edge detection shader
+// https://github.com/keijiro/Pix2Pix
+
 #include "PostProcessing/Shaders/StdLib.hlsl"
 
 TEXTURE2D_SAMPLER2D(_MainTex, sampler_MainTex);

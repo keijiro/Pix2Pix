@@ -154,7 +154,7 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: a7124b871a595da44bf743194cc7a21c, type: 3}
       propertyPath: m_Name
-      value: Sphere
+      value: Sphere3
       objectReference: {fileID: 0}
     - target: {fileID: 2300000, guid: a7124b871a595da44bf743194cc7a21c, type: 3}
       propertyPath: m_Materials.Array.data[0]
@@ -243,7 +243,7 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: a7124b871a595da44bf743194cc7a21c, type: 3}
       propertyPath: m_Name
-      value: Sphere
+      value: Sphere2
       objectReference: {fileID: 0}
     - target: {fileID: 2300000, guid: a7124b871a595da44bf743194cc7a21c, type: 3}
       propertyPath: m_Materials.Array.data[0]
@@ -492,7 +492,7 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 100000, guid: a7124b871a595da44bf743194cc7a21c, type: 3}
       propertyPath: m_Name
-      value: Sphere
+      value: Sphere1
       objectReference: {fileID: 0}
     - target: {fileID: 2300000, guid: a7124b871a595da44bf743194cc7a21c, type: 3}
       propertyPath: m_Materials.Array.data[0]

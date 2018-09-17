@@ -1,7 +1,10 @@
+// Gradient noise-based random motion
+// https://github.com/keijiro/Pix2Pix
+
 using UnityEngine;
 using Unity.Mathematics;
 
-class NoiseMove : MonoBehaviour
+class RandomMotion : MonoBehaviour
 {
     [SerializeField] uint _seed = 1234;
     [SerializeField] float _frequency = 1;
