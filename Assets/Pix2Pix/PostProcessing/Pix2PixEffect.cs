@@ -111,6 +111,8 @@ namespace Pix2Pix.PostProcessing
             var budget = Application.isPlaying ? 180 : 1200;
             var update = false;
 
+            GpuBackend.UseCommandBuffer(cmd);
+
             for (var cost = 0.0f; cost < budget;)
             {
                 if (!_generator.Running)
@@ -123,6 +125,8 @@ namespace Pix2Pix.PostProcessing
 
                 if (!_generator.Running) _generator.GetResult(_result);
             }
+
+            GpuBackend.ResetToDefaultCommandBuffer();
 
             // Temporal reprojection pass
             props.SetTexture(ShaderIDs.EdgeTex, _source);

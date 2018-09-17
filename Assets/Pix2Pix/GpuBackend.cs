@@ -2,6 +2,7 @@
 // https://github.com/keijiro/Pix2Pix
 
 using UnityEngine;
+using UnityEngine.Rendering;
 using System.Collections.Generic;
 
 namespace Pix2Pix
@@ -23,7 +24,53 @@ namespace Pix2Pix
         void OnDisable()
         {
             ReleaseBufferPool();
+            if (_commandBuffer != null) _commandBuffer.Dispose();
             _instance = null;
+        }
+
+        #endregion
+
+        #region Command buffer management
+
+        CommandBuffer _commandBuffer;
+        CommandBuffer _overrideCommandBuffer;
+
+        public static CommandBuffer SharedCommandBuffer {
+            get {
+                if (_instance._overrideCommandBuffer != null)
+                    return _instance._overrideCommandBuffer;
+
+                if (_instance._commandBuffer == null)
+                    _instance._commandBuffer = new CommandBuffer();
+
+                return _instance._commandBuffer;
+            }
+        }
+
+        public static void ClearCommandBuffer()
+        {
+            SharedCommandBuffer.Clear();
+        }
+
+        public static void ExecuteCommandBuffer()
+        {
+            Graphics.ExecuteCommandBuffer(SharedCommandBuffer);
+        }
+
+        public static void ExecuteAndClearCommandBuffer()
+        {
+            ExecuteCommandBuffer();
+            ClearCommandBuffer();
+        }
+
+        public static void UseCommandBuffer(CommandBuffer buffer)
+        {
+            _instance._overrideCommandBuffer = buffer;
+        }
+
+        public static void ResetToDefaultCommandBuffer()
+        {
+            _instance._overrideCommandBuffer = null;
         }
 
         #endregion
@@ -77,11 +124,12 @@ namespace Pix2Pix
             var length = input.Buffer.count;
             Debug.Assert(length % threadCount.x == 0);
 
-            compute.SetFloat("Alpha", alpha);
-            compute.SetBuffer(kernel, "Input" , input .Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeFloatParam(compute, "Alpha", alpha);
+            cb.SetComputeBufferParam(compute, kernel, "Input" , input .Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Output", output.Buffer);
 
-            compute.Dispatch(kernel, length / threadCount.x, 1, 1);
+            cb.DispatchCompute(compute, kernel, length / threadCount.x, 1, 1);
         }
 
         internal static void InvokeConcat
@@ -106,16 +154,15 @@ namespace Pix2Pix
             Debug.Assert(channels % threadCount.x == 0);
             Debug.Assert((width * height) % threadCount.y == 0);
 
-            compute.SetShapeAsInts("InputShape", input1.Shape);
-            compute.SetBuffer(kernel, "Input1", input1.Buffer);
-            compute.SetBuffer(kernel, "Input2", input2.Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeShapeAsIntParams(compute, "InputShape", input1.Shape);
+            cb.SetComputeBufferParam(compute, kernel, "Input1", input1.Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Input2", input2.Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Output", output.Buffer);
 
-            compute.Dispatch(
-                kernel,
-                channels / threadCount.x,
-                width * height / threadCount.y,
-                1
+            cb.DispatchCompute(
+                compute, kernel,
+                channels / threadCount.x, width * height / threadCount.y, 1
             );
         }
 
@@ -139,13 +186,14 @@ namespace Pix2Pix
 
             Debug.Assert(channels % threadCount.x == 0);
 
-            compute.SetShapeAsInts("InputShape", input.Shape);
-            compute.SetBuffer(kernel, "Input" , input .Buffer);
-            compute.SetBuffer(kernel, "Scale" , scale .Buffer);
-            compute.SetBuffer(kernel, "Offset", offset.Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeShapeAsIntParams(compute, "InputShape", input.Shape);
+            cb.SetComputeBufferParam(compute, kernel, "Input" , input .Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Scale" , scale .Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Offset", offset.Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Output", output.Buffer);
 
-            compute.Dispatch(kernel, channels / threadCount.x, 1, 1);
+            cb.DispatchCompute(compute, kernel, channels / threadCount.x, 1, 1);
         }
 
         static string GetConv2DKernelName(int outChannels)
@@ -217,21 +265,22 @@ namespace Pix2Pix
 
             Debug.Assert(outChannels % threadCount.x == 0 || outChannels == 3);
 
-            compute.SetShapeAsInts( "InputShape", input .Shape);
-            compute.SetShapeAsInts("FilterShape", filter.Shape);
-            compute.SetShapeAsInts("OutputShape", output.Shape);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeShapeAsIntParams(compute,  "InputShape", input .Shape);
+            cb.SetComputeShapeAsIntParams(compute, "FilterShape", filter.Shape);
+            cb.SetComputeShapeAsIntParams(compute, "OutputShape", output.Shape);
 
-            compute.SetInts( "InputIndexer", GpuBackendHelper.Indexer(input .Shape));
-            compute.SetInts("FilterIndexer", GpuBackendHelper.Indexer(filter.Shape));
-            compute.SetInts("OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
+            cb.SetComputeIntParams(compute,  "InputIndexer", GpuBackendHelper.Indexer(input .Shape));
+            cb.SetComputeIntParams(compute, "FilterIndexer", GpuBackendHelper.Indexer(filter.Shape));
+            cb.SetComputeIntParams(compute, "OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
 
-            compute.SetBuffer(kernel, "Input" , input .Buffer);
-            compute.SetBuffer(kernel, "Filter", filter.Buffer);
-            compute.SetBuffer(kernel, "Bias"  , bias  .Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Input" , input .Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Filter", filter.Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Bias"  , bias  .Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Output", output.Buffer);
 
             var groupCount = Mathf.Max(1, outChannels / threadCount.x);
-            compute.Dispatch(kernel, groupCount, output.Shape[1], output.Shape[0]);
+            cb.DispatchCompute(compute, kernel, groupCount, output.Shape[1], output.Shape[0]);
         }
 
         internal static void InvokeReorderWeights(Tensor input, Tensor output)
@@ -244,16 +293,17 @@ namespace Pix2Pix
             Debug.Assert(input.Shape[2] == output.Shape[3]);
             Debug.Assert(input.Shape[3] == output.Shape[2]);
 
-            compute.SetShapeAsInts("InputShape" , input .Shape);
-            compute.SetShapeAsInts("OutputShape", output.Shape);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeShapeAsIntParams(compute, "InputShape" , input .Shape);
+            cb.SetComputeShapeAsIntParams(compute, "OutputShape", output.Shape);
 
-            compute.SetInts("InputIndexer" , GpuBackendHelper.Indexer(input .Shape));
-            compute.SetInts("OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
+            cb.SetComputeIntParams(compute, "InputIndexer" , GpuBackendHelper.Indexer(input .Shape));
+            cb.SetComputeIntParams(compute, "OutputIndexer", GpuBackendHelper.Indexer(output.Shape));
 
-            compute.SetBuffer(kernel, "Input" , input .Buffer);
-            compute.SetBuffer(kernel, "Output", output.Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Input" , input .Buffer);
+            cb.SetComputeBufferParam(compute, kernel, "Output", output.Buffer);
 
-            compute.Dispatch(kernel, input.Shape[0], input.Shape[1], 1);
+            cb.DispatchCompute(compute, kernel, input.Shape[0], input.Shape[1], 1);
         }
 
         internal static void InvokeImageToTensor(Texture input, Tensor output)
@@ -269,15 +319,14 @@ namespace Pix2Pix
             Debug.Assert(input.width  % threadCount.x == 0);
             Debug.Assert(input.height % threadCount.y == 0);
 
-            compute.SetShapeAsInts("Shape", output.Shape);
-            compute.SetTexture(kernel, "InputImage", input);
-            compute.SetBuffer(kernel, "OutputTensor", output.Buffer);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeShapeAsIntParams(compute, "Shape", output.Shape);
+            cb.SetComputeTextureParam(compute, kernel, "InputImage", input);
+            cb.SetComputeBufferParam(compute, kernel, "OutputTensor", output.Buffer);
 
-            compute.Dispatch(
-                kernel,
-                input.width  / threadCount.x,
-                input.height / threadCount.y,
-                1
+            cb.DispatchCompute(
+                compute, kernel,
+                input.width  / threadCount.x, input.height / threadCount.y, 1
             );
         }
 
@@ -295,15 +344,14 @@ namespace Pix2Pix
             Debug.Assert(input.Shape[0] % threadCount.y == 0);
             Debug.Assert(output.enableRandomWrite);
 
-            compute.SetShapeAsInts("Shape", input.Shape);
-            compute.SetBuffer(kernel, "InputTensor", input.Buffer);
-            compute.SetTexture(kernel, "OutputImage", output);
+            var cb = SharedCommandBuffer;
+            cb.SetComputeShapeAsIntParams(compute, "Shape", input.Shape);
+            cb.SetComputeBufferParam(compute, kernel, "InputTensor", input.Buffer);
+            cb.SetComputeTextureParam(compute, kernel, "OutputImage", output);
 
-            compute.Dispatch(
-                kernel,
-                output.width  / threadCount.x,
-                output.height / threadCount.y,
-                1
+            cb.DispatchCompute(
+                compute, kernel,
+                output.width  / threadCount.x, output.height / threadCount.y, 1
             );
         }
 
@@ -324,14 +372,14 @@ namespace Pix2Pix
 
         static int[] _tempArray = new int[4];
 
-        public static void SetShapeAsInts
-            (this ComputeShader shader, string name, Shape shape)
+        public static void SetComputeShapeAsIntParams
+            (this CommandBuffer cb, ComputeShader compute, string name, Shape shape)
         {
             _tempArray[0] = shape.Dim1;
             _tempArray[1] = shape.Dim2;
             _tempArray[2] = shape.Dim3;
             _tempArray[3] = shape.Dim4;
-            shader.SetInts(name, _tempArray);
+            cb.SetComputeIntParams(compute, name, _tempArray);
         }
 
         internal static int[] Indexer(Shape shape)

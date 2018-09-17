@@ -68,6 +68,7 @@ namespace Pix2Pix
                         info.shape[0], info.shape[1], info.shape[3], info.shape[2]
                     ));
                     GpuBackend.InvokeReorderWeights(tensor, temp);
+                    Pix2Pix.GpuBackend.ExecuteAndClearCommandBuffer();
                     tensor.Dispose();
                     tensor = temp;
                 }

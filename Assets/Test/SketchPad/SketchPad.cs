@@ -128,6 +128,8 @@ public class SketchPad : MonoBehaviour
             if (!_generator.Running) _generator.GetResult(_resultTexture);
         }
 
+        Pix2Pix.GpuBackend.ExecuteAndClearCommandBuffer();
+
         // Review the budget depending on the current frame time.
         _budget -= (Time.deltaTime * 60 - 1.25f) * _budgetAdjust;
         _budget = Mathf.Clamp(_budget, 150, 1200);
