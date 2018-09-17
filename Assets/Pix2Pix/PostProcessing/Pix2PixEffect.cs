@@ -14,7 +14,8 @@ namespace Pix2Pix.PostProcessing
     [PostProcess(typeof(Pix2PixRenderer), PostProcessEvent.BeforeStack, "Pix2Pix")]
     public sealed class Pix2PixEffect : PostProcessEffectSettings
     {
-        [Range(0, 2)] public FloatParameter edgeThreshold = new FloatParameter { value = 0.8f };
+        [Range(0, 2)] public FloatParameter edgeThreshold = new FloatParameter { value = 0.5f };
+        [Range(0, 1)] public FloatParameter edgeIntensity = new FloatParameter { value = 0.5f };
         [Range(0, 1)] public FloatParameter edgeOpacity = new FloatParameter { value = 0 };
     }
 
@@ -28,18 +29,15 @@ namespace Pix2Pix.PostProcessing
         {
             internal static readonly int EdgeParams = Shader.PropertyToID("_EdgeParams");
             internal static readonly int EdgeTex = Shader.PropertyToID("_EdgeTex");
-            internal static readonly int RemapTex = Shader.PropertyToID("_RemapTex");
         }
 
         Dictionary<string, Tensor> _weightTable;
         Generator _generator;
 
         Shader _shader;
-        RenderTargetIdentifier[] _mrt = new RenderTargetIdentifier[2];
 
-        RenderTexture _source;
-        RenderTexture _result;
-        RenderTexture _remap;
+        RenderTexture _sourceRT;
+        RenderTexture _resultRT;
 
         public override void Init()
         {
@@ -53,15 +51,15 @@ namespace Pix2Pix.PostProcessing
             _weightTable = WeightReader.ReadFromFile(filePath);
             _generator = new Generator(_weightTable);
 
-            _source = new RenderTexture(256, 256, 0);
-            _result = new RenderTexture(256, 256, 0);
-            _result.enableRandomWrite = true;
+            _sourceRT = new RenderTexture(256, 256, 0);
+            _resultRT = new RenderTexture(256, 256, 0);
+            _resultRT.enableRandomWrite = true;
 
-            _source.hideFlags = HideFlags.DontSave;
-            _result.hideFlags = HideFlags.DontSave;
+            _sourceRT.hideFlags = HideFlags.DontSave;
+            _resultRT.hideFlags = HideFlags.DontSave;
 
-            _source.Create();
-            _result.Create();
+            _sourceRT.Create();
+            _resultRT.Create();
         }
 
         public override void Release()
@@ -78,17 +76,10 @@ namespace Pix2Pix.PostProcessing
                 _weightTable = null;
             }
 
-            RuntimeUtilities.Destroy(_source);
-            RuntimeUtilities.Destroy(_result);
-
-            if (_remap != null) RenderTexture.ReleaseTemporary(_remap);
+            RuntimeUtilities.Destroy(_sourceRT);
+            RuntimeUtilities.Destroy(_resultRT);
 
             base.Release();
-        }
-
-        public override DepthTextureMode GetCameraFlags()
-        {
-            return DepthTextureMode.MotionVectors | DepthTextureMode.Depth;
         }
 
         public override void Render(PostProcessRenderContext context)
@@ -99,51 +90,26 @@ namespace Pix2Pix.PostProcessing
             var sheet = context.propertySheets.Get(_shader);
             var props = sheet.properties;
 
-            // Edge detection pass
-            props.SetVector(
-                ShaderIDs.EdgeParams,
-                new Vector2(settings.edgeThreshold, settings.edgeOpacity)
-            );
+            props.SetVector(ShaderIDs.EdgeParams, new Vector3(
+                settings.edgeThreshold,
+                settings.edgeIntensity,
+                settings.edgeOpacity
+            ));
 
-            cmd.BlitFullscreenTriangle(context.source, _source, sheet, 0);
+            // Edge detection pass
+            cmd.BlitFullscreenTriangle(context.source, _sourceRT, sheet, 0);
 
             // Pix2Pix generator pass
-            var budget = Application.isPlaying ? 180 : 1200;
-            var update = false;
-
             GpuBackend.UseCommandBuffer(cmd);
-
-            for (var cost = 0.0f; cost < budget;)
-            {
-                if (!_generator.Running)
-                {
-                    _generator.Start(_source);
-                    update = true;
-                }
-
-                cost += _generator.Step();
-
-                if (!_generator.Running) _generator.GetResult(_result);
-            }
-
+            _generator.Start(_sourceRT);
+            _generator.Step();
+            while (_generator.Running) _generator.Step();
+            _generator.GetResult(_resultRT);
             GpuBackend.ResetToDefaultCommandBuffer();
 
-            // Temporal reprojection pass
-            props.SetTexture(ShaderIDs.EdgeTex, _source);
-            if (_remap != null) props.SetTexture(ShaderIDs.RemapTex, _remap);
-
-            var newRemap = RenderTexture.GetTemporary
-                (context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
-
-            _mrt[0] = context.destination;
-            _mrt[1] = newRemap.colorBuffer;
-
-            cmd.BlitFullscreenTriangle
-                (_result, _mrt, newRemap.depthBuffer, sheet, update ? 1 : 2);
-
-            // Update the internal state.
-            if (_remap != null) RenderTexture.ReleaseTemporary(_remap);
-            _remap = newRemap;
+            // Composite pass
+            props.SetTexture(ShaderIDs.EdgeTex, _sourceRT);
+            cmd.BlitFullscreenTriangle(_resultRT, context.destination, sheet, 1);
 
             cmd.EndSample("Pix2Pix");
         }
