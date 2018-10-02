@@ -12,7 +12,7 @@ namespace Pix2Pix
     {
         #region MonoBehaviour implementation as a singleton-like class
 
-        [SerializeField, HideInInspector] ComputeAssets _computeAssets;
+        [SerializeField, HideInInspector] ComputeAssets _computeAssets = null;
 
         static GpuBackend _instance;
 

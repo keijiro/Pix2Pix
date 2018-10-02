@@ -13,6 +13,8 @@ namespace Pix2Pix
     {
         #region JSON deserialization
 
+        #pragma warning disable CS0649
+
         [Serializable] struct ShapeInfo
         {
             public string name;
@@ -23,6 +25,8 @@ namespace Pix2Pix
         {
             public ShapeInfo[] shapes;
         }
+
+        #pragma warning restore CS0649
 
         static ShapeInfo[] ReadShapeInfoJson(Byte[] data)
         {

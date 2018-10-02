@@ -10,14 +10,14 @@ public class SketchPad : MonoBehaviour
 {
     #region Editable attributes
 
-    [SerializeField] string _weightFileName;
-    [SerializeField] Texture _defaultTexture;
+    [SerializeField] string _weightFileName = null;
+    [SerializeField] Texture _defaultTexture = null;
 
-    [SerializeField] UI.RawImage _sourceUI;
-    [SerializeField] UI.RawImage _resultUI;
-    [SerializeField] UI.Text _textUI;
+    [SerializeField] UI.RawImage _sourceUI = null;
+    [SerializeField] UI.RawImage _resultUI = null;
+    [SerializeField] UI.Text _textUI = null;
 
-    [SerializeField, HideInInspector] Shader _drawShader;
+    [SerializeField, HideInInspector] Shader _drawShader = null;
 
     #endregion
 
