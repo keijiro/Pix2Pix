@@ -11,7 +11,7 @@ network frameworks.
 
 Sketch Pad demo
 ---------------
-
+![screenshot](https://i.imgur.com/4He3lII.gif)
 ![screenshot](https://i.imgur.com/aXYYjes.gif)
 ![screenshot](https://i.imgur.com/Tb0nYqU.gif)
 
@@ -40,6 +40,7 @@ This repository doesn't contain any trained model to save the bandwidth and
 storage quota. To run the example project on Unity Editor, download the
 pre-trained [edges2cats model] and copy it into `Assets/StreamingAssets`.
 
+[edges2pokemon model]: https://github.com/ababilinski/pix2pix-tensorflow-models/blob/master/pokemon_BtoA.pict
 [edges2cats model]: https://github.com/affinelayer/pix2pix-tensorflow-models/blob/master/edges2cats_AtoB.pict
 
 This implementation only supports the `.pict` weight data format which is used
